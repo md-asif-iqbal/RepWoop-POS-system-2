@@ -1,6 +1,8 @@
 "use client"
 
 
+import { ChevronDown } from 'lucide-react';
+import Link from 'next/link';
 import React, { useState } from 'react'
 import { GrUserSettings } from 'react-icons/gr';
 
@@ -258,6 +260,11 @@ export default function Sales() {
           Reset
         </button>
       </div>
+      <div className='flex justify-end mb-2'>
+       <Link href="/Sales/Create"> 
+        <button className='btn bg-sky-500 text-white hover:bg-purple-500 '>Add+</button>
+       </Link>
+      </div>
 
       {/* Sales Table */}
       <div className="overflow-x-auto">
@@ -299,9 +306,9 @@ export default function Sales() {
                   <div className="relative">
                     <button
                       onClick={() => handleActionClick(sale.invoiceNo)}
-                      className="p-1  transform cursor-pointer text-sky-400 hover:text-red-500 hover:scale-110 border-2"
+                      className="p-1 flex gap-2 items-center transform cursor-pointer text-sky-400 hover:text-red-500 hover:scale-110 border"
                     >
-                      <GrUserSettings />
+                      Action<ChevronDown strokeWidth={1.25} size={20} />
                     </button>
                     {selectedInvoice === sale.invoiceNo && (
                       <div className="absolute bg-white shadow-sm rounded p-2 mt-2 z-20 right-10">
@@ -329,3 +336,7 @@ export default function Sales() {
     </div>
   )
 }
+
+
+
+

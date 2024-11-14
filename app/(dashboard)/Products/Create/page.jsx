@@ -110,6 +110,7 @@ export default function ProductCreate() {
   
     const handleSubmit = async (e) => {
       e.preventDefault();
+      console.log(user.name);
     
       const formData = new FormData();
       formData.append('productName', productName);
@@ -146,12 +147,12 @@ export default function ProductCreate() {
         }
     
         const result = await response.json();
-        alert('Product added successfully!');
+        toast.success('Product added successfully!');
         console.log('Response:', result);
         
       } catch (error) {
         console.error('Error submitting the form:', error);
-        alert('Failed to add product. Check the console for details.');
+        toast.error('Failed to add product. Check the console for details.');
       }
     };
 

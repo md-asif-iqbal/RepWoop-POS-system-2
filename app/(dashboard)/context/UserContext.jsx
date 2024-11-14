@@ -49,6 +49,7 @@ export const UserProvider = ({ children }) => {
     setIsLoggedIn(true);
     setUser(userData);
     localStorage.setItem('isLoggedIn', 'true');
+    router.push('/home');
     localStorage.setItem('user', JSON.stringify(userData)); // Store user data in localStorage
     const expiration = new Date().getTime() + 15 * 60 * 60 * 1000;
     localStorage.setItem('expiration', expiration.toString());

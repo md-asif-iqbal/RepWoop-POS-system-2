@@ -15,3 +15,30 @@ export async function GET() {
     });
   }
 }
+
+
+export async function POST(req) {
+  try {
+    const { unitName, unitValue, relatedTo , relatedSign} = await req.json();
+
+    const result = await query(
+      `
+      INSERT INTO units (unit, unit_value, related_to , related_sign)
+      VALUES ($1, $2, $3, $4)
+      RETURNING *;
+      `,
+      [unitName, unitValue, relatedTo , relatedSign]
+    );
+
+    return new Response(JSON.stringify(result.rows[0]), {
+      status: 201,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  } catch (error) {
+    console.error('Error inserting unit:', error);
+    return new Response(JSON.stringify({ error: 'Failed to insert unit' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+}

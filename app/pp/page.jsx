@@ -1,53 +1,126 @@
+'use client';
 
-'use client'
-import React, { useEffect, useState } from 'react';
-import { jsPDF } from 'jspdf';
-import * as XLSX from 'xlsx';
-import { Eye, Filter } from 'lucide-react';
-import { RiDeleteBin5Line } from 'react-icons/ri';
-import { TbEdit } from 'react-icons/tb';
-import Image from 'next/image';
-import Link from 'next/link';
-import Loader from '@/app/Loaders/page';
+import React, { useState, useEffect } from 'react';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 import { toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
-export default function ProductData() {
-  const [showModal, setShowModal] = useState(false);
-  const [showFilters, setShowFilters] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState(null);
-  const [selectedProducts, setSelectedProducts] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filters, setFilters] = useState({
-    product: '',
-    category: '',
-    brand: '',
-    price: ''
-  });
-  const [sortOrder, setSortOrder] = useState('');
-  const [dateSortOrder, setDateSortOrder] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [productsPerPage] = useState(10);
-  const [showExpireDate, setShowExpireDate] = useState(false);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [modalAction, setModalAction] = useState(null);
-  const [file, setFile] = useState(null);
-  const [message, setMessage] = useState('');
+export default function AddSale() {
+
+const [customer, setCustomer] = useState('Walk-In Customer');
+  const [saleDate, setSaleDate] = useState(new Date());
+  const [payTerm, setPayTerm] = useState('');
+  const [status, setStatus] = useState('');
+  const [invoiceScheme, setInvoiceScheme] = useState('Default');
+  const [invoiceNo, setInvoiceNo] = useState('');
+  const [selectedFile, setSelectedFile] = useState(null);
   const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [total, setTotal] = useState(0);
+  const [discountType, setDiscountType] = useState('Percentage');
+  const [discountAmount, setDiscountAmount] = useState(0);
+  const [shippingCharges, setShippingCharges] = useState(0);
+  const [orderTax, setOrderTax] = useState(0);
+  const [sellNote, setSellNote] = useState('');
+  const [amountPaid, setAmountPaid] = useState(0);
+  const [changeReturn, setChangeReturn] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [paymentStatus, setPaymentStatus] = useState('unpaid');
+  const [discountedTotal, setDiscountedTotal] = useState(total);
 
-  const handleOpenModal = (action, product) => {
-    if (modalVisible) return; 
-    setModalVisible(true);
-    setSelectedProduct(product);
-    setModalAction(action);
+  const [paymentDate, setPaymentDate] = useState(new Date());
+  const [paymentMethod, setPaymentMethod] = useState('Cash');
+  const [paymentAccount, setPaymentAccount] = useState('');
+  const [paymentNote, setPaymentNote] = useState('');
+  const [shippingNote, setShippingNote] = useState('');
+
+//   const [availableProducts] = useState([
+//     { id: 1, product_name: 'Fresh Soybean Oil 500 ml', opening_stock: 24.00, unit: 'Pieces', price: 86.00, purchase_cost: 60.00 },
+//     { id: 2, product_name: 'Olive Oil 1L', opening_stock: 15.00, unit: 'Pieces', price: 120.00, purchase_cost: 90.00 },
+//   ]);
+  const [availableProducts, setAvailableProducts] = useState([]);
+
+
+  const addProduct = (product) => {
+    const newProduct = {
+      ...product,
+      quantity: 1,
+      subtotal: product.sale_price,
+      purchase_cost: product.purchase_cost,
+      details: ''
+    };
+    setProducts((prev) => [...prev, newProduct]);
+    calculateTotal([...products, newProduct]);
   };
-  
-  const handleCloseModal = () => {
-    setModalAction(null);
-    setModalVisible(false);
-    setSelectedProduct(null);
+
+  const handleProductChange = (index, field, value) => {
+    const updatedProducts = [...products];
+    updatedProducts[index][field] = value;
+
+    const quantity = parseFloat(updatedProducts[index].quantity) || 1;
+    const unitPrice = parseFloat(updatedProducts[index].sale_price) || 0;
+    updatedProducts[index].subtotal = quantity * unitPrice;
+
+    setProducts(updatedProducts);
+    calculateTotal(updatedProducts);
   };
+
+  const calculateTotal = (productsList) => {
+    const totalAmount = productsList.reduce((sum, product) => sum + product.subtotal, 0);
+    setTotal(totalAmount);
+  };
+
+  const calculateDiscountedTotal = () => {
+    let discountValue = 0;
+
+    if (discountType === 'Percentage') {
+      discountValue = (discountAmount / 100) * total;
+    } else {
+      discountValue = discountAmount;
+    }
+
+    const discounted = total - discountValue + parseFloat(orderTax || 0);
+    const finalTotal = discounted + parseFloat(shippingCharges || 0);
+    setDiscountedTotal(finalTotal);
+    setChangeReturn(amountPaid - finalTotal);
+    updatePaymentStatus(amountPaid, finalTotal);
+  };
+
+  useEffect(() => {
+    calculateDiscountedTotal();
+  }, [total, discountAmount, discountType, shippingCharges, orderTax]);
+
+  const updatePaymentStatus = (paidAmount, totalAmount) => {
+    if (paidAmount >= totalAmount) {
+      setPaymentStatus('paid');
+    } else if (paidAmount > 0 && paidAmount < totalAmount) {
+      setPaymentStatus('partial');
+    } else {
+      setPaymentStatus('unpaid');
+    }
+  };
+
+  const handleAmountPaidChange = (e) => {
+    const paidAmount = parseFloat(e.target.value) || 0;
+    setAmountPaid(paidAmount);
+    setChangeReturn(paidAmount - discountedTotal);
+    updatePaymentStatus(paidAmount, discountedTotal);
+  };
+
+  const handleSearch = (e) => {
+    setSearchQuery(e.target.value);
+  };
+
+  const filteredProducts = availableProducts.filter(product =>
+    searchQuery && product.product_name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const removeProduct = (index) => {
+    const updatedProducts = products.filter((_, i) => i !== index);
+    setProducts(updatedProducts);
+    calculateTotal(updatedProducts);
+  };
+
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -55,793 +128,302 @@ export default function ProductData() {
         const response = await fetch('/Products/Create/products');
         if (!response.ok) throw new Error('Failed to fetch products');
         const data = await response.json();
-        setProducts(data);
+        setAvailableProducts(data);
       } catch (error) {
         console.error('Error fetching products:', error);
         setError(error.message);
-      } finally {
-        setLoading(false);
-      }
+      } 
     };
 
     fetchProducts();
   }, []);
 
-  const handleSelectAll = (e) => {
-    if (e.target.checked) {
-      const allProductIds = products?.map((product) => product?.id);
-      setSelectedProducts(allProductIds);
-    } else {
-      setSelectedProducts([]);
-    }
-  };
+  const handleSubmit = async (e) => {
+    e.preventDefault();
 
-  const handleSelectProduct = (e, productId) => {
-    if (e.target.checked) {
-      setSelectedProducts([...selectedProducts, productId]);
-    } else {
-      setSelectedProducts(selectedProducts.filter((id) => id !== productId));
-    }
-  };
+     const formData = {
+      customer,
+      saleDate,
+      payTerm,
+      status,
+      invoiceScheme,
+      invoiceNo,
+      products,
+      total,
+      discountType,
+      discountAmount,
+      shippingCharges,
+      orderTax,
+      sellNote,
+      amountPaid,
+      changeReturn,
+      paymentDate,
+      paymentMethod,
+      paymentAccount,
+      paymentNote,
+      shippingNote
+    };
+    console.log(formData);
 
-  const toggleFilters = () => {
-    setShowFilters(!showFilters);
-  };
-
-  const exportPDF = () => {
-    const doc = new jsPDF();
-    doc.text('Product List', 20, 10);
-    products.forEach((product, index) => {
-      doc.text(`${index + 1}. ${product?.product}, SKU: ${product?.sku}, Price: $${product?.price}`, 20, 20 + index * 10);
-    });
-    doc.save('products.pdf');
-  };
-
-  const exportExcel = () => {
-    const ws = XLSX.utils.json_to_sheet(products);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Products');
-    XLSX.writeFile(wb, 'products.xlsx');
-  };
-
-  const handlePrint = () => {
-    const printContent = document.getElementById("table-to-print").outerHTML;
-    const newWindow = window.open('', '_blank');
-    newWindow.document.write(`
-      <html>
-        <head>
-          <title>Products List</title>
-          <style>
-            body { font-family: Arial, sans-serif; }
-            table { border-collapse: collapse; width: 100%; }
-            th, td { border: 1px solid #000; padding: 8px; text-align: left; }
-          </style>
-        </head>
-        <body onload="window.print()">
-          ${printContent.replace(/<th>Actions<\/th>.*?<\/tr>/, '')} <!-- Remove the Actions column -->
-        </body>
-      </html>
-    `);
-    newWindow.document.close();
-  };
-
-  const handleFilterChange = (e) => {
-    setFilters({
-      ...filters,
-      [e.target.name]: e.target.value
-    });
-  };
-
-  const handlePriceSort = (e) => {
-    setSortOrder(e.target.value);
-  };
-
-  const handleDateSort = (e) => {
-    setDateSortOrder(e.target.value);
-  };
-
-  const indexOfLastProduct = currentPage * productsPerPage;
-  const indexOfFirstProduct = indexOfLastProduct - productsPerPage;
-  const currentProducts = products.slice(indexOfFirstProduct, indexOfLastProduct);
-
-  const paginate = (pageNumber) => setCurrentPage(pageNumber);
-
-  const filteredProducts = products
-  .filter((product) =>
-    product?.product_name?.toLowerCase().includes(searchTerm.toLowerCase())
-    && (filters.product === '' || product?.product_name === filters.product)
-    && (filters.category === '' || product?.category === filters.category)
-    && (filters.brand === '' || product?.brand === filters.brand)
-  )
-    .sort((a, b) => {
-      if (sortOrder === 'Low to High') {
-        return a.sale_price - b.sale_price;
-      } else if (sortOrder === 'High to Low') {
-        return b.sale_price - a.sale_price;
-      } else if (dateSortOrder === 'Oldest First') {
-        return new Date(a.created_at) - new Date(b.created_at);
-      } else if (dateSortOrder === 'Newest First') {
-        return new Date(b.created_at) - new Date(a.created_at);
-      } else {
-        return 0;
-      }
-    });
-
-  const downloadCSVTemplate = () => {
-    const headers = [
-      'product_name', 'product_code', 'category', 'brand', 'main_unit',
-      'sub_unit', 'opening_stock', 'sale_price', 'purchase_cost',
-      'product_details', 'image', 'created_at', 'discount', 'expire_date', 'username', 'email'
-    ];
-    const rows = [
-      [
-        'Sample Product 1', 'PROD001', 'Electronics', 'Samsung', 'Unit', 'Sub-Unit',
-        '10', '500', '300', 'Sample details 1', 'https://example.com/image1.jpg',
-        '2024-01-01', '5%', '2025-01-01', 'John Doe'
-      ],
-      [
-        'Sample Product 2', 'PROD002', 'Home Appliances', 'LG', 'Unit', 'Sub-Unit',
-        '15', '700', '450', 'Sample details 2', 'https://example.com/image2.jpg',
-        '2024-02-01', null, '2025-02-01', 'Jane Doe'
-      ]
-    ];
-    const csvContent = [headers, ...rows]?.map(e => e.join(',')).join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.setAttribute('download', 'products_template.csv');
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  const downloadExcelTemplate = () => {
-    const headers = [
-      'productName', 'productCode', 'selectedCategory', 'selectedBrand',
-      'selectedMainUnit', 'subUnit', 'openingStock', 'salePrice', 'purchaseCost',
-      'productDetails', 'imageLink', 'createdDate', 'discount', 'expireDate', 'userName'
-    ];
-    const rows = [
-      [
-        'Sample Product 1', 'PROD001', 'Electronics', 'Samsung', 'Unit', 'Sub-Unit',
-        10, 500, 300, 'Sample details 1', 'https://example.com/image1.jpg',
-        '2024-01-01', '5%', '2025-01-01', 'John Doe'
-      ],
-      [
-        'Sample Product 2', 'PROD002', 'Home Appliances', 'LG', 'Unit', 'Sub-Unit',
-        15, 700, 450, 'Sample details 2', 'https://example.com/image2.jpg',
-        '2024-02-01', null, '2025-02-01', 'John Doe'
-      ]
-    ];
-    const worksheetData = [headers, ...rows];
-    const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Products Template');
-    XLSX.writeFile(workbook, 'products_template.xlsx');
-  };
-
-  const handleFileUpload = (e) => {
-    const selectedFile = e?.target?.files[0];
-    if (selectedFile) {
-      setFile(selectedFile);
-      setMessage('');
-    } else {
-      setMessage('Please select a valid file');
-    }
-  };
-
-  const submitProducts = async () => {
-    if (!file) {
-      setMessage('Please select a file before submitting.');
-      return;
-    }
-    const formData = new FormData();
-    formData?.append('file', file);
     try {
-      const response = await fetch('/Products/multiple', {
+      const response = await fetch('/api/sales', {
         method: 'POST',
-        body: formData,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
       });
-      const data = await response.json();
-      if (response?.ok) {
-        toast.success(data.message || 'File uploaded and data inserted successfully');
-        setShowModal(false);
+
+      if (response.ok) {
+        toast.success("Sale saved successfully!");
+        // Optionally reset the form or redirect
       } else {
-        setMessage(data?.error || 'File upload failed');
+        toast.error("Failed to save sale. Please try again.");
       }
     } catch (error) {
-      console.error('Error uploading file:', error);
-      toast.error('Error uploading file');
+      console.error("Error saving sale:", error);
+      toast.error("An error occurred while saving the sale.");
     }
   };
 
-  const handleDelete = async (id) => {
-    try {
-      const response = await fetch(`/Products/product/${id}`, {
-        method: 'DELETE',
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        toast.error(errorData.error || 'Failed to delete product');
-        return;
-      }
-      toast.info('Product deleted successfully');
-      handleCloseModal();
-      setProducts(products.filter((product) => product?.id !== id));
-    } catch (error) {
-      console.error('Error deleting product:', error);
-      toast.error('An error occurred while deleting the product');
-    }
-  };
 
-  if (loading) return <Loader />;
-  if (error) return <p>Error: {error}</p>;
+  const getTotalClassproduct_name = () => {
+    if (paymentStatus === 'paid') return 'text-green-600';
+    if (paymentStatus === 'partial') return 'text-yellow-600';
+    return 'text-red-600';
+  };
 
   return (
-    <div className='font-nunito text-sm'>
-        <div className="container mx-auto px-4  md:mt-[7%] mt-[20%] font-nunito text-sm">
-      {/* Action Buttons */}
-      <div className="md:flex mflex-col md:flex-row justify-between items-center mb-4">
-        <h2 className=" dark:text-white text-lg  mb-2 md:mb-0">Product List</h2>
-        <div className="md:flex space-x-2 space-y-2 md:space-y-0">
-          <Link href="/Products/Create">
-          <button className="px-4 py-2 bg-green-500 text-white rounded">Add New Product</button>
-          </Link>
-          <button
-                className="px-4 py-2 bg-blue-500 text-white rounded"
-                onClick={()=>setShowModal(true)}
-            >
-                Import Product
-            </button>
-            {/* Modal */}
-            {showModal && (
-                              <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50">
-                                <div className="bg-white w-full md:w-1/2 p-6">
-                                  <h2 className="dark:text-white text-lg mb-4">Import Products</h2>
-                                  <div className="md:space-x-4 md:mb-4">
-                                    <button onClick={downloadCSVTemplate} className="bg-blue-500 text-white px-4 py-2 rounded">
-                                      Download CSV Template
-                                    </button>
-                                    <button onClick={downloadExcelTemplate} className="bg-green-500 text-white px-4 py-2 rounded">
-                                      Download Excel Template
-                                    </button>
-                                  </div>
-                                  <input
-                                    type="file"
-                                    accept=".csv, .xlsx"
-                                    onChange={handleFileUpload}
-                                    className="mb-4 bg-white"
-                                  />
-                                  <div className="flex justify-end space-x-4">
-                                    <button className="px-4 py-2 bg-green-500 text-white rounded" onClick={submitProducts}>
-                                      Submit
-                                    </button>
-                                    <button
-                                      className="px-4 py-2 bg-red-500 text-white rounded"
-                                      onClick={() => setShowModal(false)}
-                                    >
-                                      Close
-                                    </button>
-                                  </div>
-                                  {message && <p className="mt-4 text-red-500">{message}</p>}
-                                </div>
-                              </div>
-                                      )}
-
-          <button onClick={exportPDF} className="px-4 py-2 bg-red-500 text-white rounded">PDF</button>
-          <button onClick={exportExcel} className="px-4 py-2 bg-yellow-500 text-white rounded">Excel</button>
-          <button onClick={handlePrint} className="px-4 py-2 bg-gray-500 text-white rounded">Print</button>
-        </div>
-      </div>
-                   {/* Modal */}
-
-
-
-      {/* Search and Filter Section */}
-      <div className="flex md:justify-end md:items-end mb-4">
-       
-        <div className="flex space-x-2">
-          <button onClick={toggleFilters} className="bg-red-500 text-white px-4 py-2 rounded">
-            {showFilters ? '✕' : <Filter size={20} strokeWidth={2} /> }
-          </button>
-          
-          <select className="border border-gray-300 px-4 py-2 rounded" onChange={handleDateSort}>
-            <option value="">Sort by Date</option>
-            <option value="Newest First">Newest First</option>
-            <option value="Oldest First">Oldest First</option>
+    <div classproduct_name="container mx-auto p-4 space-y-6 text-sm mt-[5%]">
+      <h2 classproduct_name="text-xl  mb-4">Add Sale</h2>
+      
+      <form onSubmit={handleSubmit} classproduct_name="space-y-6"  >
+        {/* Customer and Service Details */}
+        <div classproduct_name='bg-white shadow-md md:p-6'>
+          <h3 classproduct_name=" mb-2">Customer and Service Details</h3>
+          <label classproduct_name="block ">Select types of service</label>
+          <select classproduct_name="w-full md:w-1/2 p-2 border rounded">
+            <option>Please Select</option>
           </select>
-        </div>
-      </div>
 
-      {/* Filters - Toggle Visibility */}
-      {showFilters && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4  gap-4 mb-4">
-          <input
-          type="text"
-          placeholder="Search"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="border bg-white border-gray-300 px-4 py-2 rounded focus:outline-none mb-2 md:mb-0"
-        />
-          <select
-            name="category"
-            className="border border-gray-300 px-4 py-2 rounded"
-            value={filters.category}
-            onChange={handleFilterChange}
-          >
-            <option value="">Choose Category</option>
-            {uniqueCategories?.map((category) => (
-              <option key={category} value={category}>
-                {category}
-              </option>
-            ))}
-          </select>
-          <select
-            name="brand"
-            className="border border-gray-300 px-4 py-2 rounded"
-            value={filters.brand}
-            onChange={handleFilterChange}
-          >
-            <option value="">All Brand</option>
-            {uniqueBrands?.map((brand) => (
-              <option key={brand} value={brand}>
-                {brand}
-              </option>
-            ))}
-          </select>
-          <select className="border border-gray-300 px-4 py-2 rounded" onChange={handlePriceSort}>
-            <option value="">Sort by Price</option>
-            <option value="Low to High">Low to High</option>
-            <option value="High to Low">High to Low</option>
-          </select>
-        </div>
-      )}
-
-      {/* Product Table */}
-      <div className="overflow-x-auto">
-        <table id='table-to-print' className="min-w-full table-auto  bg-white dark:bg-[#1c1c3c] dark:text-white shadow-sm  overflow-hidden">
-          <thead>
-            <tr className="bg-emerald-500 text-white">
-              <th className="px-4 py-2 ">
-                <input className='bg-white' type="checkbox" onChange={handleSelectAll} />
-              </th>
-              <th className="px-4 py-2 ">Product</th>
-              <th className="px-4 py-2 ">SKU</th>
-              <th className="px-4 py-2 ">Category</th>
-              <th className="px-4 py-2 ">Brand</th>
-              <th className="px-4 py-2 ">Price</th>
-              <th className="px-4 py-2 ">Unit</th>
-              <th className="px-4 py-2 ">Quantity</th>
-              <th className="px-4 py-2 ">Created Date</th>
-              <th className="px-4 py-2 ">Created By</th>
-              <th className="px-4 py-2 ">Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredProducts?.slice(indexOfFirstProduct, indexOfLastProduct)?.map((product) => (
-              <tr key={product?.id} className="border-t border-gray-200 ">
-                <td className="px-4 py-2 ">
-                  <input
-                  className='bg-white'
-                    type="checkbox"
-                    checked={selectedProducts.includes(product?.id)}
-                    onChange={(e) => handleSelectProduct(e, product?.id)}
-                  />
-                </td>
-                <td className="px-4 py-2 flex items-center">
-                {product?.image && (
-                  <Image 
-                  width={200} height={300}
-                  src={`data:image/jpeg;base64,${product?.image}`}
-                  alt={product?.product_name}
-  
-                    className="w-8 h-10 object-cover rounded mr-2"
-                  />   )}
-                  {product?.product_name}
-                </td>
-                <td className="px-4 py-2 ">{product?.product_code}</td>
-                <td className="px-4 py-2">{product?.category }</td>
-                <td className="px-4 py-2">{product?.brand }</td>
-                <td className="px-4 py-2">${product?.sale_price }</td>
-                <td className="px-4 py-2">{product?.main_unit}</td>
-                <td className="px-4 py-2">{product?.opening_stock }</td>
-                <td className="px-4 py-2">{new Date(product?.created_at).toISOString().split('T')[0] }</td>
-                <td className="px-4 py-2">{product?.username }</td>
-                {/* <td className="px-4 py-2">{product?.createdBy}</td> */}
-                <td className="px-4 py-2 flex space-x-2">
-                  <button onClick={() => handleOpenModal('view', product)} className="border  p-2 transform hover:scale-110 hover:bg-[#092C4C] hover:text-white">
-                    <Eye size={16} strokeWidth={1.5} /></button>
-                  <button  onClick={() => handleOpenModal('edit', product)} className="p-2  border transform text-blue-600 hover:bg-[#288EC7] hover:text-white hover:scale-110">
-                  <TbEdit size={16}/>
-                </button>
-                <button onClick={() => handleOpenModal('delete', product)} className="p-2  transform text-red-500 hover:bg-red-500 hover:text-white hover:scale-110 border">
-                  <RiDeleteBin5Line size={16}/>
-                </button>
-                                
-                       {/* Modal */}
-                       {modalVisible && (
-                    <div
-                      className="fixed inset-0 flex items-center justify-center bg-opacity-50 transition-all duration-300 ease-in-out"
-                    >
-                      <div className="bg-white w-[90%] md:w-[50%] lg:w-[50%] text-center rounded shadow-lg relative">
-                        {/* Close Button */}
-                        <button onClick={handleCloseModal} 
-                        className="btn btn-sm hover:bg-rose-500 hover:text-white btn-circle btn-ghost absolute right-2 top-2">
-                          ✕
-                          </button>
-
-                        <h2 className="text-lg mb-4">
-                          {modalAction === 'view' && 'Product Details'}
-                          {modalAction === 'edit' && 'Edit Product'}
-                          {modalAction === 'delete' && 'Are you sure?'}
-                        </h2>
-
-                        {modalAction === 'view' && (
-                          <div className="hero w-full">
-                          <div className="hero-content flex-col lg:flex-row">
-                                    <Image 
-                            width={300} height={400}
-                            src={`data:image/jpeg;base64,${selectedProduct?.image}`}
-                            alt={selectedProduct?.product_name}
-            
-                              className=" object-cover rounded mr-2"
-                            /> 
-                            <div className='text-start'>
-                              <h1 className=" text-xl md:text-3xl font-bold">{selectedProduct?.product_name}</h1>
-                              <p className="">
-                              Category: 
-                                {selectedProduct?.category}
-                              </p>
-                              <p className="">
-                                Brand: 
-                                {selectedProduct?.brand}
-                              </p>
-                              <p className=" text-emerald-400">
-                               Sale price: {selectedProduct?.sale_price}
-                              </p>
-                              <p className=" text-red-500">
-                                Purchase price: 
-                                {selectedProduct?.purchase_cost}
-                              </p>
-                              <p className="">
-                                Total Unit: 
-                                {selectedProduct?.sub_unit}
-                              </p>
-                              <p className="">
-                                Opening Stock: 
-                                {selectedProduct?.opening_stock}
-                              </p>
-                              <p className="">
-                                Discount:  
-                                {selectedProduct?.discount} %
-                              </p>
-                              <p className="">
-                                Details: 
-                                {selectedProduct?.product_details}
-                              </p>
-                            
-                            </div>
-                          </div>
-                        </div>
-                        )}
-
-                        {modalAction === 'edit' && (
-                         <div>
-                          <form onSubmit={handleSubmit} className="p-4 bg-white shadow-lg dark:bg-[#202047]">
-      <h1 className="text-2xl mb-4">Add New Product</h1>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="mb-4">
-          <label className="block mb-2">
-            Product Name <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            placeholder="Product Name"
-            className="bg-white 
-             p-2 border rounded w-full text-black"
-            value={productName}
-            onChange={(e) => setProducts(e.target.value)}
-          />
-        </div>
-
-        <div className="mb-4">
-          <label className="block mb-2">
-            Product Code <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            placeholder="Product Code"
-            className="bg-white p-2 border rounded w-full text-black"
-            value={productCode}
-            onChange={(e) => setProductCode(e.target.value)}
-          />
-        </div>
-
-        {/* Category Selection */}
-        <div className=" mb-4">
-          <div className="w-full">
-            <label className="block mb-2">
-              Category <span className="text-red-500">*</span>
-            </label>
-           <div className='md:flex gap-2'>
-           <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="bg-white 
-               p-2 border rounded w-full text-black"
-            >
-              <option value="">Search Categories</option>
-              {categories?.map((category, index) => (
-                <option key={index} value={category}>
-                  {category}
-                </option>
-              ))}
-            </select>
-            <button
-            type="button"
-            className="p-2 bg-blue-500 text-white rounded w-full md:w-1/2 "
-            onClick={() => setShowCategoryModal(true)}
-          >
-            Add Category
-          </button>
-
-           </div>
-          </div>
-          
-        </div>
-
-        {/* Brand Selection */}
-        <div className=" mb-4">
-          <div className="w-full">
-            <label className="block mb-2">
-              Brand <span className="text-red-500">*</span>
-            </label>
-            <div className='w-full md:flex gap-2'>
-            <select
-              value={selectedBrand}
-              onChange={(e) => setSelectedBrand(e.target.value)}
-              className="bg-white 
-               p-2 border rounded text-black w-full"
-            >
-              <option value="">Search Brands</option>
-              {brands?.map((brand, index) => (
-                <option key={index} value={brand}>
-                  {brand}
-                </option>
-              ))}
-            </select>
-            <button
-            type="button"
-            className="p-2 bg-blue-500 text-white rounded w-full md:w-1/2"
-            onClick={() => setShowBrandModal(true)}
-          >
-            Add Brand
-          </button>
-          </div>
-          
+          <div classproduct_name="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+            <div>
+              <label classproduct_name="block font-semibold">Customer:*</label>
+              <select classproduct_name="w-full  p-2 border rounded" value={customer} onChange={(e) => setCustomer(e.target.value)}>
+                <option>Walk-In Customer</option>
+                <option>Customer 1</option>
+                <option>Customer 2</option>
+              </select>
             </div>
+            <div>
+              <label classproduct_name="block font-semibold">Billing Address:</label>
+              <input type="text" value="Walk-In Customer" disabled classproduct_name="w-full p-2 border rounded bg-gray-100" />
+            </div>
+            <div>
+              <label classproduct_name="block font-semibold">Shipping Address:</label>
+              <input type="text" value="Walk-In Customer" disabled classproduct_name="w-full p-2 border rounded bg-gray-100" />
+            </div>
+          </div>
         </div>
 
-        {/* Unit Selection */}
-        <div className="mb-4">
-          <label className="block mb-2">
-           Main Unit <span className="text-red-500">*</span>
-          </label>
-          <select
-            value={selectedMainUnit}
-            onChange={(e) => setSelectedMainUnit(e.target.value)}
-            className="bg-white text-black 
-             p-2 border rounded w-full"
-          >
-            <option value="">Select Unit</option>
-            {mainUnits?.map((unit, index) => (
-              <option key={index} value={unit}>
-                {unit}
-              </option>
-            ))}
-          </select>
+        {/* Payment and Invoice Details */}
+        <div  classproduct_name='bg-white shadow-md md:p-6'>
+          <h3 classproduct_name=" mb-2">Payment and Invoice Details</h3>
+          <div classproduct_name="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label classproduct_name="block ">Pay Term:</label>
+              <select classproduct_name="w-full p-2 border rounded">
+                <option>Please Select</option>
+                <option value="days">Days</option>
+                <option value="monthly">Monthly</option>
+              </select>
+            </div>
+            <div>
+              <label classproduct_name="block ">Sale Date:*</label>
+              <DatePicker
+                selected={saleDate}
+                onChange={(date) => setSaleDate(date)}
+                showTimeSelect
+                dateFormat="Pp"
+                classproduct_name="w-full p-2 border rounded"
+              />
+            </div>
+            <div>
+              <label classproduct_name="block font-semibold">Status:*</label>
+              <select classproduct_name="w-full p-2 border rounded" value={status} onChange={(e) => setStatus(e.target.value)}>
+                <option>This field is required</option>
+                <option value="Completed">Completed</option>
+                <option value="Pending">Pending</option>
+              </select>
+            </div>
+            <div>
+              <label classproduct_name="block ">Status:*</label>
+              <select classproduct_name="w-full p-2 border rounded">
+                <option>This field is required</option>
+                <option value="Completed">Completed</option>
+                <option value="Pending">Pending</option>
+              </select>
+            </div>
+            <div>
+              <label classproduct_name="block ">Invoice Scheme:</label>
+              <input type="text" classproduct_name="w-full p-2 border rounded" value={invoiceScheme} onChange={(e) => setInvoiceScheme(e.target.value)} />
+            </div>
+            <div>
+              <label classproduct_name="block ">Invoice No.:</label>
+              <input type="text" classproduct_name="w-full p-2 border rounded" value={invoiceNo} onChange={(e) => setInvoiceNo(e.target.value)} placeholder="Keep blank to auto generate" />
+            </div>
+          </div>
         </div>
 
-        <div className="mb-4">
-          <label className="block mb-2">
-           Sub Unit <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            placeholder="Sub Unit"
-            className="bg-white 
-             p-2 border rounded w-full text-black"
-            value={subUnit}
-            onChange={(e) => setSubUnit(e.target.value)}
-          />
+        {/* Product Selection */}
+        <div  classproduct_name='bg-white shadow-md md:p-6'>
+          <h3 classproduct_name=" mb-2">Product Selection</h3>
+          <label classproduct_name="block ">Enter Product product_name / SKU / Scan bar code</label>
+          <input type="text" value={searchQuery} onChange={handleSearch} classproduct_name="w-full p-2 border rounded mb-2" />
+
+          {filteredProducts.length > 0 && (
+            <div classproduct_name="border rounded shadow overflow-auto max-h-64">
+              {filteredProducts.map((product) => (
+                <div key={product.id} classproduct_name="p-2 border-b hover:bg-gray-100 cursor-pointer" onClick={() => addProduct(product)}>
+                  {product.product_name}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {products.length > 0 && (
+            <table classproduct_name="w-full border-collapse mt-4 text-center">
+              <thead>
+                <tr classproduct_name="bg-gray-100">
+                  <th classproduct_name="p-2">Product</th>
+                  <th classproduct_name="p-2">Quantity</th>
+                  <th classproduct_name="p-2">Unit Price</th>
+                  <th classproduct_name="p-2">Purchase Price</th>
+                  <th classproduct_name="p-2">Details</th>
+                  <th classproduct_name="p-2">Subtotal</th>
+                  <th classproduct_name="p-2">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {products.map((product, index) => (
+                  <tr key={index} classproduct_name="text-center">
+                    <td classproduct_name="p-2">{product.product_name}</td>
+                    <td classproduct_name="p-2">
+                      <input type="number" min="1" value={product.quantity} onChange={(e) => handleProductChange(index, 'quantity', e.target.value)} classproduct_name="w-full md:w-1/2 text-center border rounded" />
+                    </td>
+                    <td classproduct_name="p-2">৳ {product.price}</td>
+                    <td classproduct_name="p-2">৳ {product.purchase_cost}</td>
+                    <td classproduct_name="p-2">
+                      <textarea type="textarea textarea-primary p-2" value={product.details} onChange={(e) => handleProductChange(index, 'details', e.target.value)} placeholder="Add IMEI, Serial number..." classproduct_name="w-full border rounded" />
+                    </td>
+                    <td classproduct_name="p-2">৳ {product.subtotal}</td>
+                    <td classproduct_name="p-2">
+                      <button onClick={() => removeProduct(index)} classproduct_name="text-red-500">Remove</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
 
-        <div className="mb-4">
-          <label className="block mb-2">Opening Stock</label>
-          <input
-            type="number"
-            placeholder="Opening Stock"
-            className="bg-white text-black
-             p-2 border rounded w-full"
-            value={openingStock}
-            onChange={(e) => setOpeningStock(e.target.value)}
-          />
+        {/* Discount, Tax */}
+        <div  classproduct_name='bg-white shadow-md md:p-6'>
+          <h3 classproduct_name=" mb-2">Discount and Tax</h3>
+          <div classproduct_name="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label classproduct_name="block ">Discount Type:</label>
+              <select classproduct_name="w-full p-2 border rounded" value={discountType} onChange={(e) => setDiscountType(e.target.value)}>
+                <option value="Percentage">Percentage</option>
+                <option value="Fixed">Fixed</option>
+              </select>
+            </div>
+            <div>
+              <label classproduct_name="block ">Discount Amount:*</label>
+              <input type="number" classproduct_name="w-full p-2 border rounded" value={discountAmount} onChange={(e) => setDiscountAmount(e.target.value)} />
+            </div>
+            <div>
+              <label classproduct_name="block ">Order Tax:*</label>
+              <input type="number" classproduct_name="w-full p-2 border rounded" value={orderTax} onChange={(e) => setOrderTax(e.target.value)} />
+            </div>
+          </div>
         </div>
 
-        <div className="mb-4">
-          <label className="block mb-2">
-            Sale Price <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="number"
-            placeholder="Sale Price"
-            className="bg-white text-black
-             p-2 border rounded w-full"
-            value={salePrice}
-            onChange={(e) => setSalePrice(e.target.value)}
-          />
+        {/* Shipping Section */}
+        <div classproduct_name='bg-white shadow-md md:p-6'>
+          <h3 classproduct_name=" mb-2">Shipping Details</h3>
+          <div classproduct_name="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label classproduct_name="block ">Shipping Address:</label>
+              <input type="text" classproduct_name="w-full p-2 border rounded" placeholder="Shipping Address" />
+            </div>
+            <div>
+              <label classproduct_name="block ">Shipping Charges:</label>
+              <input type="number" classproduct_name="w-full p-2 border rounded" value={shippingCharges} onChange={(e) => setShippingCharges(e.target.value)} />
+            </div>
+            <div>
+              <label classproduct_name="block ">Shipping Note:</label>
+              <textarea classproduct_name="w-full p-2 border rounded" value={shippingNote} onChange={(e) => setShippingNote(e.target.value)} placeholder="Add shipping note here..." />
+            </div>
+            
+          </div>
         </div>
 
-        <div className="mb-4">
-          <label className="block mb-2">
-            Purchase Cost <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="number"
-            placeholder="Purchase Cost"
-            className="bg-white text-black
-             p-2 border rounded w-full"
-            value={purchaseCost}
-            onChange={(e) => setPurchaseCost(e.target.value)}
-          />
-        </div>
-            {/* Discount Field */}
-    <div className="mb-4">
-      <label className="block mb-2">
-        Discount (%) <span className="text-red-500">*</span>
-      </label>
-      <input
-        type="number"
-        placeholder="Enter discount percentage"
-        className="bg-white p-2 text-black border rounded w-full"
-        value={discount}
-        onChange={(e) => setDiscount(e.target.value)}
-      />
-    </div>
-
-    {/* Expiration Date Toggle */}
-    <div className="mb-4">
-      <label className="flex items-center space-x-2">
-        <input
-          type="checkbox"
-          checked={showExpireDate}
-          onChange={() => setShowExpireDate(!showExpireDate)}
-          className="form-checkbox"
-        />
-        <span>Add Expiration Date</span>
-      </label>
-      {/* Expiration Date Field */}
-    {showExpireDate && (
-      <div className="mb-4">
-        <label className="block mb-2">
-          Expiration Date <span className="text-red-500">*</span>
-        </label>
-        <input
-          type="date"
-          className="bg-white p-2 text-black border rounded w-full"
-          value={expireDate}
-          onChange={(e) => setExpireDate(e.target.value)}
-        />
-      </div>
-    )}
-    </div>
-
-        {/* Product Details Textarea */}
-        <div className="mb-4">
-          <label className="block mb-2">
-            Product Details <span className="text-red-500">*</span>
-          </label>
-          <textarea
-            placeholder="Enter product details..."
-            className="bg-white 
-             p-2 border rounded text-black w-full"
-            rows="5"
-            value={productDetails}
-            onChange={(e) => setProductDetails(e.target.value)}
-          />
+        {/* Add Payment Section */}
+        <div  classproduct_name='bg-white shadow-md md:p-6'>
+          <h3 classproduct_name=" mb-2">Add Payment</h3>
+          <div classproduct_name="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label classproduct_name="block ">Amount Paid:*</label>
+              <input type="number" classproduct_name="w-full p-2 border rounded" value={amountPaid} onChange={handleAmountPaidChange} />
+            </div>
+            <div>
+              <label classproduct_name="block ">Change Return:</label>
+              <input type="text" classproduct_name="w-full p-2 border rounded bg-gray-100" value={`৳ ${changeReturn.toFixed(2)}`} disabled />
+            </div>
+          </div>
+          <div classproduct_name="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+            <div>
+              <label classproduct_name="block ">Paid on:*</label>
+              <DatePicker
+                selected={paymentDate}
+                onChange={(date) => setPaymentDate(date)}
+                showTimeSelect
+                dateFormat="Pp"
+                classproduct_name="w-full p-2 border rounded"
+              />
+            </div>
+            <div>
+              <label classproduct_name="block ">Payment Method:*</label>
+              <select classproduct_name="w-full p-2 border rounded" value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
+                <option value="Cash">Cash</option>
+                <option value="Bank">Bank Transfer</option>
+                <option value="Card">Card Payment</option>
+              </select>
+            </div>
+            <div>
+              <label classproduct_name="block ">Payment Account:</label>
+              <select classproduct_name="w-full p-2 border rounded" value={paymentAccount} onChange={(e) => setPaymentAccount(e.target.value)}>
+                <option>Select Account</option>
+                <option value="Account1">Account 1</option>
+                <option value="Account2">Account 2</option>
+              </select>
+            </div>
+            <div>
+              <label classproduct_name="block ">Payment Note:</label>
+              <textarea classproduct_name="w-full p-2 border rounded" value={paymentNote} onChange={(e) => setPaymentNote(e.target.value)} placeholder="Add payment notes here..." />
+            </div>
+          </div>
         </div>
 
-        {/* Product Image */}
-        <div className="mb-4">
-          <label className="block mb-2">Product Image</label>
-          <input
-            type="file"
-            className="bg-white 
-             p-2 border rounded w-full text-black"
-            onChange={(e) => setProductImage(e.target.files[0])}
-          />
+        {/* Total Bill */}
+        <div classproduct_name="mt-6">
+          <h3 classproduct_name={` text-lg ${getTotalClassproduct_name()}`}>Total Payable: ৳ {discountedTotal.toFixed(2)}</h3>
+          <div classproduct_name="flex gap-4 mt-4">
+            <button type="submit" classproduct_name="bg-green-500 text-white p-2 rounded">Save</button>
+            <button type="button" classproduct_name="bg-blue-500 text-white p-2 rounded">Save & Print</button>
+            
+          </div>
         </div>
-      </div>
-
-      {/* Submit Button */}
-      <button
-        type="submit"
-        className="bg-blue-500 w-full md:w-1/6 justify-items-center flex justify-center text-white px-8 py-2 rounded"
-      >
-        Save
-      </button>
-    </form>
-                         </div>
-                        )}
-
-                        {modalAction === 'delete' && (
-                          <div className='p-4'>
-
-                            <h1 className=" text-xl md:text-3xl font-bold">{selectedProduct?.product_name}</h1>
-                              <p className="">
-                              SKU: 
-                                {selectedProduct?.product_code}
-                              </p>
-                              <p className="">
-                              Category: 
-                                {selectedProduct?.category}
-                              </p>
-                              <p className="">
-                                Brand: 
-                                {selectedProduct?.brand}
-                              </p>
-                              <p className=" text-emerald-400">
-                               Sale price: {selectedProduct?.sale_price}
-                              </p>
-                              <p className=" text-red-500">
-                                Purchase price: 
-                                {selectedProduct?.purchase_cost}
-                              </p>
-                            <div className="flex justify-center space-x-4">
-                              <button
-                                onClick={() => handleDelete(selectedProduct?.id)}
-                                className="bg-orange-500 hover:bg-orange-600 text-white py-2 px-4 rounded"
-                              >
-                                Yes, delete it!
-                              </button>
-                              <button
-                                onClick={handleCloseModal}
-                                className="bg-gray-500 hover:bg-gray-600 text-white py-2 px-4 rounded"
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-  
-
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Pagination */}
-      <div className="lg:flex justify-center items-center gap-5 mt-4">
-        {[...Array(Math.ceil(filteredProducts.length / productsPerPage)).keys()]?.map((number) => (
-          <button
-            key={number + 1}
-            onClick={() => paginate(number + 1)}
-            className={`px-3 py-2 mx-1 border rounded ${currentPage === number + 1 ? 'bg-blue-500 text-white' : 'bg-white text-black'}`}
-          >
-            {number + 1}
-          </button>
-        ))}
-         <div >Showing {indexOfFirstProduct + 1} to {Math.min(indexOfLastProduct, filteredProducts.length)} of {filteredProducts.length} entries</div>
-      </div>
-     
-        </div>
-
+      </form>
     </div>
   );
 }

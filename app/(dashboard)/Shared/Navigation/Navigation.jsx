@@ -170,7 +170,7 @@ export default function Navigation() {
             
      <div>
      {isLoggedIn ? (
-            <button className='bg-rose-500 p-1 px-5 rounded-full text-white flex items-center gap-1' onClick={logout}>Logout <ArrowRightFromLine size={16} /></button>
+            <Link href="/"><button className='bg-rose-500 p-1 px-5 rounded-full text-white flex items-center gap-1' onClick={logout}>Logout <ArrowRightFromLine size={16} /></button></Link>
           ) : (
             <Link href="/Login"> <button className='bg-cyan-500 p-1 px-5 rounded-full text-white flex items-center gap-1 '> <ArrowLeftFromLine size={16} />Login</button></Link>
           )}

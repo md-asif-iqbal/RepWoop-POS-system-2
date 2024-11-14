@@ -4,12 +4,14 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import { useUser } from '../(dashboard)/context/UserContext';
+import Loader from '../Loaders/page';
 
 
 export default function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [errorMessage, setErrorMessage] = useState('');
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
   const { login } = useUser();
 
@@ -25,6 +27,7 @@ export default function LoginForm() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMessage(''); // Reset any previous error messages
+    setLoading(true);
 
     try {
       const response = await fetch('/Login/login', {
@@ -36,10 +39,11 @@ export default function LoginForm() {
       if (response.ok) {
         const userData = await response.json();
         console.log('Login successful:', userData);
-
+        
         // Pass full user data (including role) to the login function in UserProvider
         login(userData); 
-        router.push('/home'); // Redirect to the home page
+        router.push('/home');
+         // Redirect to the home page
       } else {
         const errorData = await response.json();
         setErrorMessage(errorData.message); // Display error message
@@ -47,6 +51,9 @@ export default function LoginForm() {
     } catch (error) {
       console.error('Login error:', error);
       setErrorMessage('An error occurred. Please try again later.');
+    }
+    finally {
+      setLoading(false); // Set loading to false when the request is done
     }
   };
 
@@ -87,12 +94,18 @@ export default function LoginForm() {
               {showPassword ? <FaEyeSlash /> : <FaEye />}
             </button>
           </div>
+          {loading ? (
+        <button type="button" disabled className="loading-button">
+          <Loader/>
+        </button>
+      ) : (
           <button
             type="submit"
             className="w-full bg-indigo-500 text-white font-semibold py-2 rounded-lg shadow-md hover:bg-indigo-600 transition duration-200"
           >
             Login
           </button>
+          )}
         </form>
         {errorMessage && <p style={{ color: 'red' }}>{errorMessage}</p>}
       </div>

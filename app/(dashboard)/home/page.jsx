@@ -251,36 +251,7 @@ export default function Home() {
               {/* Stacked Bar Chart */}
               <Bar data={data} options={options} />
             </div>
-            {/* Recent Products Table */}
-            <div className="shadow-sm dark:bg-[#202047]">
-              <h3 className="mb-4">Recent Products</h3>
-              <table className="w-full table-auto dark:text-white">
-                <thead>
-                  <tr className="bg-emerald-500 text-white">
-                    <th className="py-2">Products</th>
-                    <th className="py-2">Price</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td className="py-2">Lenovo 3rd Generation</td>
-                    <td className="py-2">$12500</td>
-                  </tr>
-                  <tr>
-                    <td className="py-2">Bold V3.2</td>
-                    <td className="py-2">$1600</td>
-                  </tr>
-                  <tr>
-                    <td className="py-2">Nike Jordan</td>
-                    <td className="py-2">$2000</td>
-                  </tr>
-                  <tr>
-                    <td className="py-2">Apple Series 5 Watch</td>
-                    <td className="py-2">$800</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+
           </div>
         </div>
         <div className="p-4">

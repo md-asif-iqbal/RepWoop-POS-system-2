@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { toast } from 'react-toastify';
 
 export default function AddUnits() {
     const pathname = usePathname();
@@ -35,36 +36,47 @@ export default function AddUnits() {
         { id: 24, name: 'Square Meter', relatedTo: 'Meter', relatedSign: '*', relatedBy: '100', result: 'Square Meter = 1 Meter * 100' },
         { id: 25, name: 'Tonne_2', relatedTo: 'kg', relatedSign: '*', relatedBy: '1000', result: 'Tonne_2 = 1 kg * 1000' },
       ];
-    const [unitName, setUnitName] = useState('');
-    const [relatedToUnit, setRelatedToUnit] = useState('');
-    const [operator, setOperator] = useState('');
-    const [relatedByValue, setRelatedByValue] = useState('');
+      const [unitName, setUnitName] = useState('');
+      const [relatedSign, setRelatedSign] = useState('');
+      const [unitValue, setUnitValue] = useState('');
+      const [relatedTo, setRelatedTo] = useState('');
+      const [loading, setLoading] = useState(false);
   
     // Function to handle form submission
-    const handleAddUnit = (e) => {
+    const handleAddUnit = async  (e) => {
       e.preventDefault();
-  
-      if (!unitName || !operator || !relatedByValue) {
-        alert('Please fill all fields');
+
+      if (!unitName || !relatedSign || !unitValue) {
+        toast.info('Please fill all fields');
         return;
       }
+      setLoading(true);
+      try {
+        const response = await fetch('/Units/units', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ unitName, relatedSign, unitValue, relatedTo }),
+        });
   
-      const newUnit = {
-        id: Date.now(),
-        name: unitName,
-        relatedTo: relatedToUnit || '-',
-        operator,
-        relatedBy: relatedByValue,
-        result: `${unitName} = 1 ${relatedToUnit ? relatedToUnit : ''} ${operator} ${relatedByValue}`,
-      };
+        const data = await response.json();
   
-      onAddUnit(newUnit);
+        if (response.ok) {
+          toast.success(data.message);
+          setUnitName('');
+          setRelatedSign('');
+          setUnitValue('');
+          setRelatedTo('');
+        } else {
+          toast.error(data.message || 'Failed to add unit');
+        }
+      } catch (error) {
+        console.error('Error adding unit:', error);
+        toast.error('An error occurred. Please try again later.');
+      } finally {
+        setLoading(false);
+      }
   
-      // Clear form fields after submission
-      setUnitName('');
-      setRelatedToUnit('');
-      setOperator('');
-      setRelatedByValue('');
+
     };
   
   
@@ -118,8 +130,8 @@ export default function AddUnits() {
          <div>
           <label className="block text-sm mb-2">Related To Unit</label>
           <select
-            value={relatedToUnit}
-            onChange={(e) => setRelatedToUnit(e.target.value)}
+            value={relatedTo}
+            onChange={(e) => setRelatedTo(e.target.value)}
             className="w-full p-2 border rounded bg-white"
           >
             <option value="">Select Unit</option>
@@ -135,13 +147,14 @@ export default function AddUnits() {
         <div>
           <label className="block text-sm mb-2">Operator</label>
           <select
-            value={operator}
-            onChange={(e) => setOperator(e.target.value)}
+            value={relatedSign}
+            onChange={(e) => setRelatedSign(e.target.value)}
             className="w-full p-2 border rounded dark:bg-white"
             required
           >
             <option value="">Select Operator Sign</option>
             <option value="*">(*) Multiply Operator</option>
+            <option value="-">(-) Minus Operator</option>
             {/* Add more operators as needed */}
           </select>
         </div>
@@ -152,8 +165,8 @@ export default function AddUnits() {
           <input
             type="number"
             placeholder="Enter value"
-            value={relatedByValue}
-            onChange={(e) => setRelatedByValue(e.target.value)}
+            value={unitValue}
+            onChange={(e) => setUnitValue(e.target.value)}
             className="w-full p-2 border rounded bg-white"
             required
           />
