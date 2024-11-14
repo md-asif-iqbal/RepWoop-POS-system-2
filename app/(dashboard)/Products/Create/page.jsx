@@ -29,11 +29,7 @@ export default function ProductCreate() {
     const [categories, setCategories] = useState([]);
     const [brands, setBrands] = useState([]);
 
-    const [mainUnits, setUnits] = useState([
-      'pc', 'Dozen', 'gm', 'Kg', 'ml', 'Litre', 'Box', 'Screw Packet', 'thousand', 
-      'Shoes_pair', 'Shoes_pair_2', 'Shoes_pair_3', 'Pcs', 'Dz', 'kg', 'sack', 
-      'Tonne', 'Ounces', 'Pound', 'gm_2', 'Box_2', 'Pack', 'Meter', 'Square Meter', 'Tonne_2'
-    ]);
+
       // New state variables
   const [discount, setDiscount] = useState('');
   const [showExpireDate, setShowExpireDate] = useState(false);
@@ -56,6 +52,7 @@ export default function ProductCreate() {
         category_slug: (newCategory ? newCategory.toLowerCase() : ''),
         status:'active',
     };
+
     // console.log(newCategorys);
     try {
       const response = await fetch(`/Categories/categories`, {
@@ -207,6 +204,27 @@ export default function ProductCreate() {
             setFilteredBrands([]);
           }
         };
+        const [units, setUnits] = useState([]);
+        const [loading, setLoading] = useState(true);
+        const [error, setError] = useState(null);
+      
+        useEffect(() => {
+          const fetchUnits = async () => {
+            try {
+              const response = await fetch('/Units/units'); // Call the API route
+              if (!response.ok) throw new Error('Failed to fetch units');
+              const data = await response.json();
+              setUnits(data);
+            } catch (error) {
+              console.error('Error fetching units:', error);
+              setError(error.message);
+            } finally {
+              setLoading(false);
+            }
+          };
+      
+          fetchUnits();
+        }, []);
 
   return (
     <div className='bg-white dark:bg-[#141432] font-nunito text-sm dark:text-white'>
@@ -346,9 +364,9 @@ export default function ProductCreate() {
              p-2 border rounded w-full"
           >
             <option value="">Select Unit</option>
-            {mainUnits?.map((unit, index) => (
-              <option key={index} value={unit}>
-                {unit}
+            {units?.map((unit, index) => (
+              <option key={index} value={unit.unit}>
+                {unit.unit}
               </option>
             ))}
           </select>
@@ -487,84 +505,80 @@ export default function ProductCreate() {
         Save
       </button>
 
-      {/* Modals for adding new category */}
       {showCategoryModal && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-0 flex justify-center items-center">
-          <div className="bg-white p-6 rounded shadow-lg w-1/3">
-            <h2 className="text-lg mb-4">Add Category</h2>
-            <input
-              type="text"
-              value={newCategory}
-              onChange={(e) => setNewCategory(e.target.value)}
-              placeholder="Category Name"
-              className="bg-white 
-               p-2 border rounded w-full mb-4"
-            />
-            <button
-              type="button"
-              className="bg-blue-500 text-white px-4 py-2 rounded mr-2"
-              onClick={handleAddCategory}
-            >
-              Add Category
-            </button>
-            <button
-              type="button"
-              className="bg-gray-300 px-4 py-2 rounded"
-              onClick={() => setShowCategoryModal(false)}
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      )}
+  <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex justify-center items-center">
+    <div className="bg-white p-6 rounded shadow-lg w-1/3">
+      <h2 className="text-lg mb-4">Add Category</h2>
+      <input
+        type="text"
+        value={newCategory}
+        onChange={(e) => setNewCategory(e.target.value)}
+        placeholder="Category Name"
+        className="bg-white 
+         p-2 border rounded w-full mb-4"
+      />
+      <button
+        type="button"
+        className="bg-blue-500 text-white px-4 py-2 rounded mr-2"
+        onClick={handleAddCategory}
+      >
+        Add Category
+      </button>
+      <button
+        type="button"
+        className="bg-gray-300 px-4 py-2 rounded"
+        onClick={() => setShowCategoryModal(false)}
+      >
+        Close
+      </button>
+    </div>
+  </div>
+)}
 
-      {/* Modals for adding new brand */}
-      {showBrandModal && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-0 flex justify-center items-center">
-          <div className="bg-white w-[90%] md:w-[40%] lg:w-[30%] p-6 rounded shadow-lg relative">
-          <div className="flex justify-between items-center mb-4 text-black">
-              <h2 className="text-lg font-semibold">Add New Brand</h2>
-              <button onClick={() => setShowBrandModal(false)} className="btn btn-sm btn-circle btn-ghost absolute right-3 top-2">
-                ✕
-              </button>
-            </div>
-            <div className="mb-4">
-                <label className="block text-gray-700 mb-2">Category</label>
-                <select
-                    name="category"
-                    value={newCategory}
-                    onChange={(e) => setNewCategory(e.target.value)}
-                    className="w-full px-3 py-2 border rounded"
-                    required
-                >
-                    <option value="">Select Category</option>
-                    {categoryNames?.map((category, index) => (
-                    <option key={index} value={category}>
-                        {category}
-                    </option>
-                    ))}
-                </select>
-                </div>
+{showBrandModal && (
+  <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex justify-center items-center">
+    <div className="bg-white w-[90%] md:w-[40%] lg:w-[30%] p-6 rounded shadow-lg relative">
+      <div className="flex justify-between items-center mb-4 text-black">
+        <h2 className="text-lg font-semibold">Add New Brand</h2>
+        <button onClick={() => setShowBrandModal(false)} className="btn btn-sm btn-circle btn-ghost absolute right-3 top-2">
+          ✕
+        </button>
+      </div>
+      <div className="mb-4">
+        <label className="block text-gray-700 mb-2">Category</label>
+        <select
+          name="category"
+          value={newCategory}
+          onChange={(e) => setNewCategory(e.target.value)}
+          className="w-full px-3 py-2 border rounded"
+          required
+        >
+          <option value="">Select Category</option>
+          {categoryNames?.map((category, index) => (
+            <option key={index} value={category}>
+              {category}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="mb-4">
+        <label className="block text-gray-700 mb-2">Brand Name</label>
+        <input
+          type="text"
+          name="name"
+          value={newBrand}
+          onChange={(e) => setNewBrand(e.target.value)}
+          className="w-full px-3 py-2 border rounded"
+          required
+        />
+      </div>
+      <button onClick={handleAddBrand} type="submit" className="px-4 py-2 bg-emerald-500 text-white rounded">
+        Save Brand
+      </button>
+    </div>
+  </div>
+)}
 
-                <div className="mb-4">
-                <label className="block text-gray-700 mb-2">Brand Name</label>
-                <input
-                    type="text"
-                    name="name"
-                    value={newBrand}
-                    onChange={(e) => setNewBrand(e.target.value)}
-                    className="w-full px-3 py-2 border rounded"
-                    required
-                />
-                </div>
-                <button onClick={handleAddBrand} type="submit" className="px-4 py-2 bg-emerald-500 text-white rounded">
-                Save Brand
-                </button>
-
-
-          </div>
-        </div>
-      )}
     </form>
       </div>
 </div>

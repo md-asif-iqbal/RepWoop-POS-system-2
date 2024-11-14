@@ -26,7 +26,7 @@ export default function ProductData() {
   const [sortOrder, setSortOrder] = useState('');
   const [dateSortOrder, setDateSortOrder] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [productsPerPage] = useState(20);
+  const [productsPerPage] = useState(10);
   const [showExpireDate, setShowExpireDate] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [modalAction, setModalAction] = useState(null);
@@ -134,6 +134,10 @@ export default function ProductData() {
 
   const handlePriceSort = (e) => {
     setSortOrder(e.target.value);
+  };
+
+  const handleDateSort = (e) => {
+    setDateSortOrder(e.target.value);
   };
 
   const indexOfLastProduct = currentPage * productsPerPage;
@@ -269,10 +273,6 @@ export default function ProductData() {
       toast.error('An error occurred while deleting the product');
     }
   };
-  // Get unique values for filters
-  const uniqueProducts = [...new Set(products?.map((product) => product.product))];
-  const uniqueCategories = [...new Set(products?.map((product) => product.category))];
-  const uniqueBrands = [...new Set(products?.map((product) => product.brand))];
 
   if (loading) return <Loader />;
   if (error) return <p>Error: {error}</p>;
@@ -326,7 +326,7 @@ export default function ProductData() {
                                   {message && <p className="mt-4 text-red-500">{message}</p>}
                                 </div>
                               </div>
-                            )}
+                                      )}
 
           <button onClick={exportPDF} className="px-4 py-2 bg-red-500 text-white rounded">PDF</button>
           <button onClick={exportExcel} className="px-4 py-2 bg-yellow-500 text-white rounded">Excel</button>
@@ -341,13 +341,15 @@ export default function ProductData() {
       <div className="flex md:justify-end md:items-end mb-4">
        
         <div className="flex space-x-2">
-        <div className="flex md:justify-end mb-4">
-        <button onClick={toggleFilters} className="bg-red-500 text-white px-4 py-2 rounded">
-          {showFilters ? '✕' : <Filter size={20} strokeWidth={2} />}
-        </button>
-      </div>
+          <button onClick={toggleFilters} className="bg-red-500 text-white px-4 py-2 rounded">
+            {showFilters ? '✕' : <Filter size={20} strokeWidth={2} /> }
+          </button>
           
-        
+          <select className="border border-gray-300 px-4 py-2 rounded" onChange={handleDateSort}>
+            <option value="">Sort by Date</option>
+            <option value="Newest First">Newest First</option>
+            <option value="Oldest First">Oldest First</option>
+          </select>
         </div>
       </div>
 
@@ -364,7 +366,7 @@ export default function ProductData() {
           <select
             name="category"
             className="border border-gray-300 px-4 py-2 rounded"
-            value={filters?.category}
+            value={filters.category}
             onChange={handleFilterChange}
           >
             <option value="">Choose Category</option>
