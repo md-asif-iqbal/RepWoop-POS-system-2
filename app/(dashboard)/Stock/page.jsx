@@ -177,7 +177,7 @@ if (error) return <p>Error: {error}</p>;
         <th className=" px-1 py-2">Product</th>
         <th className=" px-1 py-2">Category</th>
         <th className=" px-1 py-2">Price</th>
-        <th className=" px-1 py-2">Cost</th>
+        <th className=" px-1 py-2">Quantity</th>
         <th className=" px-1 py-2">purchase cost</th>
         <th className=" px-1 py-2">Sold</th>
         <th className=" px-1 py-2">Damaged</th>
@@ -196,16 +196,16 @@ if (error) return <p>Error: {error}</p>;
           <Image 
                   width={200} height={300}
                   src={`data:image/jpeg;base64,${product.image}`}
-                  alt={product.product_name}
+                  alt={product?.product_name}
               className="w-16 h-16 object-cover"
             />
           </td>
           <td className="border px-1 py-2">{product.product_name}</td>
           <td className="border px-1 py-2">{product.category}</td>
           <td className="border px-1 py-2">{product.sale_price}</td>
-          <td className="border px-1 py-2">{product.cost||10}</td>
+          <td className="border px-1 py-2">{product.sub_unit||10}</td>
           <td className="border px-1 py-2">{product.purchase_cost}</td>
-          <td className="border px-1 py-2">{product?.sold||0}</td>
+          <td className="border px-1 py-2">{product?.sub_unit - product.opening_stock||0}</td>
           <td className="border px-1 py-2">{product.damaged ||0}</td>
           <td className="border px-1 py-2">{product.returned ||0}</td>
           <td className="border px-1 py-2">{product.opening_stock}</td>

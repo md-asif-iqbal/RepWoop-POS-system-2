@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import React, { useState } from 'react'
+import { toast } from 'react-toastify';
 
 export default function NewEmployeeForm () {
     const spanClass = " block h-0.5 bg-gradient-to-r from-pink-500 to-orange-500 scale-x-0 group-hover:scale-x-100 transition-transform origin-left duration-700"
@@ -26,11 +27,30 @@ export default function NewEmployeeForm () {
         }));
       };
     
-      const handleSubmit = (e) => {
-        e.preventDefault();
-        console.log("Form Data Submitted:", formData);
-        // logic to save or send the data, e.g., sending it to an API
-      };
+      
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    try {
+      const response = await fetch("/Employee-and-Salary/New-Employee/new", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to save data");
+      }
+
+      const data = await response.json();
+      console.log("Success:", data.message);
+      toast.success("Employee data saved successfully!");
+    } catch (error) {
+      console.error("Error:", error);
+      toast.error("Failed to save employee data.");
+    }
+  };
+
   return (
     <div className='bg-white dark:bg-[#141432] font-nunito text-sm'>
 
@@ -83,7 +103,7 @@ export default function NewEmployeeForm () {
     </div>
   </div>
   <div className="w-full  mx-auto p-4 dark:bg-[#1b1b3b]">
-      <h2 className=" dark:text-white text-lg  mb-4 dark:text-white">New Employee</h2>
+      <h2 className=" dark:text-white text-lg  mb-4 ">New Employee</h2>
       <form className="bg-white dark:bg-[#1b1b3b] shadow-sm  rounded px-8 pt-6 pb-8 mb-4 dark:text-white" onSubmit={handleSubmit}>
         <div className="flex flex-wrap -mx-3 mb-6">
           {/* Joining Date */}
@@ -92,7 +112,7 @@ export default function NewEmployeeForm () {
               Joining Date<span className="text-red-500">*</span>
             </label>
             <input
-              className="appearance-none bg-white block w-full bg-gray-100 text-gray-700 border border-gray-300 rounded py-3 px-4 mb-3 leading-tight focus:outline-none focus:bg-white"
+              className="appearance-none bg-white block w-full  text-gray-700 border border-gray-300 rounded py-3 px-4 mb-3 leading-tight focus:outline-none focus:bg-white"
               id="joiningDate"
               name="joiningDate"
               type="date"
@@ -127,7 +147,7 @@ export default function NewEmployeeForm () {
               Email
             </label>
             <input
-              className="appearance-none bg-white block w-full bg-gray-100 text-gray-700 border border-gray-300 rounded py-3 px-4 mb-3 leading-tight focus:outline-none focus:bg-white"
+              className="appearance-none bg-white block w-full  text-gray-700 border border-gray-300 rounded py-3 px-4 mb-3 leading-tight focus:outline-none focus:bg-white"
               id="email"
               name="email"
               type="email"
@@ -162,7 +182,7 @@ export default function NewEmployeeForm () {
               Salary<span className="text-red-500">*</span>
             </label>
             <input
-              className="appearance-none bg-white block w-full bg-gray-100 text-gray-700 border border-gray-300 rounded py-3 px-4 mb-3 leading-tight focus:outline-none focus:bg-white"
+              className="appearance-none bg-white block w-full  text-gray-700 border border-gray-300 rounded py-3 px-4 mb-3 leading-tight focus:outline-none focus:bg-white"
               id="salary"
               name="salary"
               type="number"
@@ -179,7 +199,7 @@ export default function NewEmployeeForm () {
               Overtime Rate<span className="text-red-500">*</span>
             </label>
             <input
-              className="appearance-none bg-white block w-full bg-gray-100 text-gray-700 border border-gray-300 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white"
+              className="appearance-none bg-white block w-full  text-gray-700 border border-gray-300 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white"
               id="overtimeRate"
               name="overtimeRate"
               type="number"
@@ -190,6 +210,7 @@ export default function NewEmployeeForm () {
             />
           </div>
         </div>
+        
 
         {/* Address */}
         <div className="w-full px-3 mb-6">
