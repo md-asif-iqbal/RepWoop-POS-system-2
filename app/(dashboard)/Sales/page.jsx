@@ -29,7 +29,8 @@ export default function Sales() {
 
     const [sales, setSales] = useState([]);
     const [loading, setLoading] = useState(true);
-  
+    const [activeModal, setActiveModal] = useState(""); // Tracks the active modal name
+    const [status, setStatus] = useState(""); // Tracks the current status
 
   
 
@@ -403,6 +404,67 @@ const handlePrint = async (sale) => {
     // updateSale(updatedSale); // Call the function to update the sale data
     setIsAddPaymentModalOpen(false); // Close the modal
   };
+
+
+  const updateSaleStatus = async (saleId, newStatus) => {
+    try {
+      const response = await fetch("/Sales/Create/sales", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ saleId, status: newStatus }),
+      });
+  
+      if (!response.ok) {
+        throw new Error("Failed to update sale status");
+      }
+  
+      const data = await response.json();
+      toast.success("Status updated successfully:", data.sale);
+      return data.sale; // Return the updated sale object
+    } catch (error) {
+      console.error("Error updating status:", error.message);
+      throw error; // Rethrow the error for further handling
+    }
+  };
+  
+   // Open the modal and set the selected sale
+   const openReturnModal = (sale) => {
+    setActiveModal("Return"); // Set the modal name
+    setSelectedSale(sale); // Set the sale data
+    setStatus(sale.status || ""); // Initialize status from the sale
+  };
+
+  // Close the modal
+  const closeModal = () => {
+    setActiveModal(""); // Reset the modal name
+    setSelectedSale(null); // Clear the selected sale
+    setStatus(""); // Reset the status
+  };
+
+  // Handle status change status
+  const handleStatusChange = (e) => {
+    setStatus(e.target.value);
+  };
+
+  // Save the updated status
+  const handleSave = async () => {
+    try {
+      const updatedSale = await updateSaleStatus(selectedSale.id, status);
+      console.log("Updated Sale:", updatedSale);
+      // Optionally update the local state to reflect the new status
+      setSales((prevSales) =>
+        prevSales.map((sale) =>
+          sale.id === updatedSale.id ? updatedSale : sale
+        )
+      );
+      closeModal(); // Close the modal
+    } catch (error) {
+      console.error("Failed to update status:", error.message);
+      toast.error("Failed to update the sale status. Please try again.");
+    }
+  };
   
 
 
@@ -595,7 +657,7 @@ const handlePrint = async (sale) => {
                     <ul key={sale.invoice_no} tabIndex={0} className="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
                     <li
                       
-                      className="p-2 hover:bg-base-200 cursor-pointer flex"
+                      className="p-2 hover:bg-base-200 cursor-pointer "
                       onClick={(e) => {
                         e.stopPropagation();
                         handlePrint(sale);
@@ -612,8 +674,8 @@ const handlePrint = async (sale) => {
                       <li onClick={() => handleShowModal(sale)} className="p-2 hover:bg-base-200 cursor-pointer">
                           Show
                       </li>
-                      <li className="p-2 hover:bg-base-200 cursor-pointer">
-                          Return
+                      <li className="p-2 hover:bg-base-200 cursor-pointer" onClick={()=>openReturnModal(sale)}>
+                        Status
                       </li>
                       <li className="p-2 hover:bg-base-200 cursor-pointer">
                           Return List
@@ -833,7 +895,7 @@ const handlePrint = async (sale) => {
         </div>
       )}
 
-      {/* ----added payment modal */}
+      {/* ----added payment modal----- */}
 
             {isAddPaymentModalOpen && (
         <div className="fixed inset-0  flex items-center justify-center">
@@ -865,6 +927,58 @@ const handlePrint = async (sale) => {
                 className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
               >
                 Save Payment
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* -------return-------- */}
+
+      {activeModal === "Return" && (
+        <div className="fixed inset-0 flex items-center justify-center">
+          <div className="bg-white p-6 rounded shadow-lg w-1/3">
+            <h2 className="text-lg font-bold mb-4">Update Status</h2>
+            {/* Display Sale Details */}
+            {selectedSale && (
+              <div className="mb-4">
+                <p>
+                  <strong>Invoice No:</strong> {selectedSale.invoice_no}
+                </p>
+                <p>
+                  <strong>Current Status:</strong> {selectedSale.status || "Not Set"}
+                </p>
+              </div>
+            )}
+            {/* Status Dropdown */}
+            <div className="mb-4">
+              <label className="block mb-2">Select New Status</label>
+              <select
+                value={status}
+                onChange={handleStatusChange}
+                className="w-full border border-gray-300 p-2 rounded"
+              >
+                <option value="" disabled>
+                  Choose Status
+                </option>
+                <option value="Returned">Returned</option>
+                <option value="Pending">Pending</option>
+                <option value="Completed">Completed</option>
+              </select>
+            </div>
+            {/* Action Buttons */}
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={closeModal}
+                className="bg-gray-300 px-4 py-2 rounded hover:bg-gray-400"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSave}
+                className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+              >
+                Save
               </button>
             </div>
           </div>

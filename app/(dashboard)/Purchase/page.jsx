@@ -1,6 +1,6 @@
 "use client"
 import Link from 'next/link'
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { GrUserSettings } from 'react-icons/gr';
 import { TbEdit, TbInvoice } from 'react-icons/tb';
 import { IoTvOutline } from "react-icons/io5";
@@ -8,309 +8,325 @@ import { MdOutlineDeleteSweep, MdOutlinePayments } from 'react-icons/md';
 import { FaPrint } from "react-icons/fa";
 import { PDFDocument,StandardFonts, rgb } from 'pdf-lib';
 import logo from "../../../assets/logo.png"
+import Loader from '@/app/Loaders/page';
+import QRCode from "qrcode";
 export default function Purchase() {
     const spanClass = " block h-0.5 bg-gradient-to-r from-pink-500 to-orange-500 scale-x-0 group-hover:scale-x-100 transition-transform origin-left duration-700"
     const [isDropdownOpen, setIsDropdownOpen] = useState(null);
     const [selectedPurchase, setSelectedPurchase] = useState(null);
-
+    const [loading, setLoading] = useState(true);
+    const [purchases, setPurchases] = useState([]);
+    
+    useEffect(() => {
+      const fetchPurchases = async () => {
+        try {
+          const response = await fetch("/Purchase/Create/purchase"); // Update the endpoint based on your API setup
+          if (!response.ok) throw new Error("Failed to fetch purchases");
+          const data = await response.json();
+          setPurchases(data.purchases);
+        } catch (error) {
+          console.error(error);
+          toast.error("Failed to load purchases");
+        } finally {
+          setLoading(false);
+        }
+      };
+  
+      fetchPurchases();
+    }, []);
+    
     const [filter, setFilter] = useState({
-      billNumber: "",
+      invoiceNo: "",
       startDate: "",
       endDate: "",
       product: "",
-      supplier: ""
+      supplier: "",
     });
     
-      const purchasesData = [
-        {
-          billNo: 1,
-          supplier: "Ayman Computer",
-          purchaseDate: "22 Sep, 2024",
-          items: "Laptop Computer | 000002",
-          payable: "1,000,000.00 TK",
-          paid: "0.00 TK",
-          due: "1,000,000.00 TK",
-        },
-        {
-          billNo: 2,
-          supplier: "Computer City",
-          purchaseDate: "22 Sep, 2024",
-          items: "Tenda F3 Router | 0000014",
-          payable: "15,000.00 TK",
-          paid: "15,000.00 TK",
-          due: "0.00 TK",
-        },
-        {
-          billNo: 3,
-          supplier: "Ayman Computer",
-          purchaseDate: "22 Sep, 2024",
-          items: "Tenda F3 Router | 0000014",
-          payable: "13,000.00 TK",
-          paid: "12,000.00 TK",
-          due: "1,000.00 TK",
-        },
-        {
-          billNo: 4,
-          supplier: "Afko Khan",
-          purchaseDate: "22 Sep, 2024",
-          items: "Tenda F3 Router | 0000013",
-          payable: "500.00 TK",
-          paid: "500.00 TK",
-          due: "0.00 TK",
-        },
-        {
-          billNo: 5,
-          supplier: "Riptith Hasan",
-          purchaseDate: "22 Sep, 2024",
-          items: "T-shirt Polo | 000001",
-          payable: "40,000.00 TK",
-          paid: "40,000.00 TK",
-          due: "0.00 TK",
-        },
-        {
-          billNo: 6,
-          supplier: "Default Supplier",
-          purchaseDate: "19 Sep, 2024",
-          items: "Gaming Laptop | 000001",
-          payable: "1,450,000.00 TK",
-          paid: "1,450,000.00 TK",
-          due: "0.00 TK",
-        },
-        {
-          billNo: 7,
-          supplier: "Default Supplier",
-          purchaseDate: "19 Sep, 2024",
-          items: "Dell Machine | 000001",
-          payable: "2,750,000.00 TK",
-          paid: "2,750,000.00 TK",
-          due: "0.00 TK",
-        },
-        {
-          billNo: 8,
-          supplier: "Default Supplier",
-          purchaseDate: "19 Sep, 2024",
-          items: "Bijar For Men | 000001",
-          payable: "250,000.00 TK",
-          paid: "250,000.00 TK",
-          due: "0.00 TK",
-        },
-        {
-          billNo: 9,
-          supplier: "Default Supplier",
-          purchaseDate: "19 Sep, 2024",
-          items: "Door Expert | 000001",
-          payable: "1,395,400.00 TK",
-          paid: "1,394,500.00 TK",
-          due: "900.00 TK",
-        },
-        {
-          billNo: 10,
-          supplier: "Default Supplier",
-          purchaseDate: "19 Sep, 2024",
-          items: "Air Conditioner | 000001",
-          payable: "9,135,000.00 TK",
-          paid: "9,135,000.00 TK",
-          due: "0.00 TK",
-        },
-        {
-          billNo: 11,
-          supplier: "Default Supplier",
-          purchaseDate: "19 Sep, 2024",
-          items: "Frieze | 000001",
-          payable: "420,000.00 TK",
-          paid: "420,000.00 TK",
-          due: "0.00 TK",
-        },
-        {
-          billNo: 12,
-          supplier: "Default Supplier",
-          purchaseDate: "19 Sep, 2024",
-          items: "Ladies Shirt | 000005",
-          payable: "70,000.00 TK",
-          paid: "70,000.00 TK",
-          due: "0.00 TK",
-        },
-        {
-          billNo: 13,
-          supplier: "Default Supplier",
-          purchaseDate: "19 Sep, 2024",
-          items: "T-shirt | 000004",
-          payable: "120,000.00 TK",
-          paid: "120,000.00 TK",
-          due: "0.00 TK",
-        },
-        {
-          billNo: 14,
-          supplier: "Default Supplier",
-          purchaseDate: "19 Sep, 2024",
-          items: "Desktop Computer | 000001",
-          payable: "375,000.00 TK",
-          paid: "37,500.00 TK",
-          due: "337,500.00 TK",
-        },
-        {
-          billNo: 15,
-          supplier: "Default Supplier",
-          purchaseDate: "19 Sep, 2024",
-          items: "Laptop Computer | 000002",
-          payable: "7,200,000.00 TK",
-          paid: "7,200,000.00 TK",
-          due: "0.00 TK",
-        },
-        {
-          billNo: 16,
-          supplier: "Default Supplier",
-          purchaseDate: "19 Sep, 2024",
-          items: "Mobile Phone | 000001",
-          payable: "415,000.00 TK",
-          paid: "415,000.00 TK",
-          due: "0.00 TK",
-        }
-      ];
-      const [purchases, setPurchases] = useState(purchasesData);
-
-// `whats new..........
-
-      // Handle filtering changes
-      const handleFilterChange = (e) => {
-        setFilter({ ...filter, [e.target.name]: e.target.value });
-      };
-    
-      // Function to reset filters
-      const resetFilters = () => {
-        setFilter({
-          billNumber: "",
-          startDate: "",
-          endDate: "",
-          product: "",
-          supplier: ""
-        });
-        setPurchases(purchasesData); // Reset the filtered purchases to the original data
-      };
-      const generateInvoice = async (purchase) => {
-        // Create a new PDFDocument with A4 size
-        const pdfDoc = await PDFDocument.create();
-        const page = pdfDoc.addPage([595.28, 841.89]); // A4 size in points
-
-        // Load the standard Helvetica font
-        const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
-
-        // Add Repwoop logo and company name at the top
-        const fetchImage = async (imageUrl) => {
-        const res = await fetch(imageUrl);
-        return res.arrayBuffer();
-        };
-
-        const logoBytes = await fetchImage(logo.src); // Fetch the image from the imported logo
-        const logoImage = await pdfDoc.embedPng(logoBytes); // Embed as PNG
-        const logoDims = logoImage.scale(0.3); // Scale the logo to fit
-
-        // Draw the logo on the top
-        page.drawImage(logoImage, { x: 50, y: 750, width: logoDims.width, height: logoDims.height });
-        
-        // Company name directly below the logo
-        page.drawText("Repwoop Company", { x: 50, y: 720, size: 18, font: helveticaFont, color: rgb(0, 0, 0) });
-
-        // Company details below the logo and name
-        page.drawText("Address: Holding 53 (1st floor), Sahajatpur, Gulshan, Dhaka 1219", { x: 50, y: 700, size: 12, font: helveticaFont });
-        page.drawText("Phone: 01779724380", { x: 50, y: 685, size: 12, font: helveticaFont });
-        page.drawText("Email: info@repwoop.com", { x: 50, y: 670, size: 12, font: helveticaFont });
-
-        // Add invoice header information
-        page.drawText(`Invoice No: ${purchase.billNo}`, { x: 400, y: 750, size: 12, font: helveticaFont });
-        page.drawText(`Date: ${purchase.purchaseDate}`, { x: 400, y: 735, size: 12, font: helveticaFont });
-
-        // Invoice table - header
-        page.drawText(`#`, { x: 50, y: 620, size: 10, font: helveticaFont });
-        page.drawText(`Details`, { x: 80, y: 620, size: 10, font: helveticaFont });
-        page.drawText(`Qty`, { x: 300, y: 620, size: 10, font: helveticaFont });
-        page.drawText(`Price`, { x: 350, y: 620, size: 10, font: helveticaFont });
-        page.drawText(`Net.A`, { x: 450, y: 620, size: 10, font: helveticaFont });
-
-        // Draw lines for table
-        page.drawLine({ start: { x: 50, y: 610 }, end: { x: 540, y: 610 }, thickness: 0.5, color: rgb(0, 0, 0) }); // Line under header
-
-        // Table Row for each item (just 1 for demo purposes)
-        page.drawText(`1`, { x: 50, y: 590, size: 10, font: helveticaFont });
-        page.drawText(`${purchase.items}`, { x: 80, y: 590, size: 10, font: helveticaFont });
-        page.drawText(`1 pc`, { x: 300, y: 590, size: 10, font: helveticaFont });
-        page.drawText(`${purchase.payable}`, { x: 350, y: 590, size: 10, font: helveticaFont });
-        page.drawText(`${purchase.payable}`, { x: 450, y: 590, size: 10, font: helveticaFont });
-
-        // Draw line after row
-        page.drawLine({ start: { x: 50, y: 580 }, end: { x: 540, y: 580 }, thickness: 0.5, color: rgb(0, 0, 0) });
-
-        // Summary section (Grand Total, Paid, Due)
-        page.drawText(`Grand Total:`, { x: 350, y: 540, size: 10, font: helveticaFont });
-        page.drawText(`${purchase.payable}`, { x: 450, y: 540, size: 10, font: helveticaFont });
-
-        page.drawText(`Paid:`, { x: 350, y: 520, size: 10, font: helveticaFont });
-        page.drawText(`${purchase.paid}`, { x: 450, y: 520, size: 10, font: helveticaFont });
-
-        page.drawText(`Due:`, { x: 350, y: 500, size: 10, font: helveticaFont });
-        page.drawText(`${purchase.due}`, { x: 450, y: 500, size: 10, font: helveticaFont });
-
-        // Draw a final line
-        page.drawLine({ start: { x: 50, y: 490 }, end: { x: 540, y: 490 }, thickness: 0.5, color: rgb(0, 0, 0) });
-
-        // Add Note
-        page.drawText(`Note: Thank you for your business!`, { x: 50, y: 470, size: 10, font: helveticaFont });
-
-        // Serialize the PDF to bytes (Uint8Array)
-        const pdfBytes = await pdfDoc.save();
-
-        // Create a Blob from the bytes and open it in a new window to print
-        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-        const blobUrl = URL.createObjectURL(blob);
-
-        // Open a new window/tab with the PDF content
-        const newTab = window.open(blobUrl);
-        newTab.onload = () => {
-        newTab.focus(); // Focus on the new tab
-        newTab.print(); // Automatically trigger the print dialog
-        };
+    // Handle filtering changes
+    const handleFilterChange = (e) => {
+      setFilter({ ...filter, [e.target.name]: e.target.value });
     };
     
-      // Function to apply filters
-      const applyFilters = () => {
-        let filteredPurchases = purchasesData;
+    // Function to reset filters
+    const resetFilters = () => {
+      setFilter({
+        invoiceNo: "",
+        startDate: "",
+        endDate: "",
+        product: "",
+        supplier: "",
+      });
+      setPurchases(purchases); // Reset the filtered purchases to the original data
+    };
     
-        if (filter.billNumber) {
-          filteredPurchases = filteredPurchases.filter((purchase) =>
-            purchase.billNo.toString().includes(filter.billNumber)
-          );
-        }
+    // Function to apply filters
+    const applyFilters = () => {
+      let filteredPurchases = purchases;
     
-        if (filter.startDate) {
-          filteredPurchases = filteredPurchases.filter(
-            (purchase) => purchase.purchaseDate >= filter.startDate
-          );
-        }
+      if (filter.invoiceNo) {
+        filteredPurchases = filteredPurchases.filter((purchase) =>
+          purchase.invoice_no.toString().includes(filter.invoiceNo)
+        );
+      }
     
-        if (filter.endDate) {
-          filteredPurchases = filteredPurchases.filter(
-            (purchase) => purchase.purchaseDate <= filter.endDate
-          );
-        }
+      if (filter.startDate) {
+        filteredPurchases = filteredPurchases.filter(
+          (purchase) => new Date(purchase.purchase_date) >= new Date(filter.startDate)
+        );
+      }
     
-        if (filter.product) {
-          filteredPurchases = filteredPurchases.filter((purchase) =>
-            purchase.items.toLowerCase().includes(filter.product.toLowerCase())
-          );
-        }
+      if (filter.endDate) {
+        filteredPurchases = filteredPurchases.filter(
+          (purchase) => new Date(purchase.purchase_date) <= new Date(filter.endDate)
+        );
+      }
     
-        if (filter.supplier) {
-          filteredPurchases = filteredPurchases.filter((purchase) =>
-            purchase.supplier.toLowerCase().includes(filter.supplier.toLowerCase())
-          );
-        }
+      if (filter.product) {
+        filteredPurchases = filteredPurchases.filter((purchase) =>
+          purchase.products
+            .map((product) => product.product_name.toLowerCase())
+            .join(", ")
+            .includes(filter.product.toLowerCase())
+        );
+      }
     
-        setPurchases(filteredPurchases);
+      if (filter.supplier) {
+        filteredPurchases = filteredPurchases.filter((purchase) =>
+          purchase.supplier.toLowerCase().includes(filter.supplier.toLowerCase())
+        );
+      }
+    
+      setPurchases(filteredPurchases);
+    };
+   
+    const generateInvoice = async (purchase) => {
+      console.log("Purchase object passed to handlePrint:", purchase);
+      if (typeof window === "undefined") return;
+    
+      const newWindow = window.open("", "_blank", "width=800,height=600");
+      if (!newWindow) {
+        alert(
+          "Pop-up blocker is preventing the print window from opening. Please allow pop-ups for this site."
+        );
+        return;
+      }
+    
+      // Prepare data for the QR Code
+      const purchaseDataForQR = {
+        invoice_no: purchase?.invoice_no,
+        supplier: purchase?.supplier,
+        purchase_date: new Date(purchase?.purchase_date).toLocaleDateString(),
+        total_payable: purchase?.total_payable,
+        amount_paid: purchase?.amount_paid,
+        change_return: purchase?.change_return,
       };
+    
+      // Convert the data to a JSON string
+      const qrCodeData = JSON.stringify(purchaseDataForQR);
+    
+      // Generate QR Code
+      let qrCodeImageUrl = "";
+      try {
+        qrCodeImageUrl = await QRCode.toDataURL(qrCodeData);
+      } catch (err) {
+        console.error("Error generating QR code:", err);
+      }
+    
+      newWindow.document.open();
+      newWindow.document.write(`
+        <html>
+          <head>
+            <title>Invoice - ${purchase?.invoice_no}</title>
+            <style>
+              body {
+                font-family: 'Arial', sans-serif;
+                margin: 0;
+                padding: 0;
+                background-color: #f9f9f9;
+                color: #333;
+              }
+              .container {
+                width: 95%;
+                margin: 20px auto;
+                background: white;
+                padding: 20px;
+              }
+              .header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding-bottom: 10px;
+                margin-bottom: 20px;
+              }
+              .header .logo {
+                width: 250px;
+                height: auto;
+              }
+              .header .company-details {
+                text-align: right;
+              }
+              .header .company-details h2 {
+                margin: 0;
+                font-size: 1.5rem;
+              }
+              .header .company-details p {
+                margin: 2px 0;
+                font-size: 0.9rem;
+              }
+              h1 {
+                text-align: center;
+                font-size: 1.5rem;
+                margin-bottom: 20px;
+                font-weight: bold;
+                text-transform: uppercase;
+              }
+              .details-section {
+                display: flex;
+                justify-content: space-between;
+                margin-bottom: 20px;
+                font-size: 0.9rem;
+              }
+              table {
+                width: 100%;
+                border-collapse: collapse;
+                margin: 20px 0;
+                font-size: 0.85rem;
+              }
+              th, td {
+                border: 1px solid #ddd;
+                padding: 10px;
+                text-align: left;
+              }
+              th {
+                background-color: #f4f4f4;
+                text-align: center;
+              }
+              td {
+                text-align: center;
+              }
+              .summary {
+                margin-top: 20px;
+                font-size: 0.9rem;
+                text-align: right;
+              }
+              .summary p {
+                margin: 5px 0;
+              }
+              .signature-section {
+                margin-top: 10%;
+                text-align: right;
+                font-size: 0.85rem;
+              }
+              .qr-code {
+                margin-top: 10%;
+                margin-bottom: 20px;
+                text-align: right;
+              }
+              .qr-code img {
+                width: 100px;
+                height: 100px;
+              }
+              .signature-line {
+                display: inline-block;
+                border-top: 1px solid #000;
+                width: 200px;
+                margin-top: 20px;
+              }
+              .footer {
+                margin-top: 30px;
+                text-align: center;
+                font-size: 0.8rem;
+                color: #777;
+              }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <!-- Header Section -->
+              <div class="header">
+                <img src="https://www.repwoop.com/wp-content/uploads/2024/02/Artboard-1.png" alt="Repwoop" class="logo">
+                <div class="company-details">
+                  <h2>Repwoop</h2>
+                  <p>123 Business Road</p>
+                  <p>City, State, ZIP</p>
+                  <p>Phone: (123) 456-7890</p>
+                  <p>Email: info@repwoop.com</p>
+                </div>
+              </div>
+              <h1>Purchase Invoice</h1>
+              <div class="details-section">
+                <div>
+                  <p><strong>Invoice No:</strong> ${purchase?.invoice_no}</p>
+                  <p><strong>Purchase Date:</strong> ${new Date(purchase?.purchase_date).toLocaleDateString()}</p>
+                  <p><strong>Supplier:</strong> ${purchase?.supplier}</p>
+                </div>
+                <div>
+                  <p><strong>Payment Method:</strong> ${purchase?.payment_method}</p>
+                  <p><strong>Payment Account:</strong> ${purchase?.payment_account}</p>
+                  <p><strong>Status:</strong> ${purchase?.status || "Not Yet"}</p>
+                </div>
+              </div>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Details</th>
+                    <th>Qty</th>
+                    <th>Price</th>
+                    <th>Subtotal</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${purchase?.products
+                    ?.map(
+                      (product) => `
+                      <tr>
+                        <td>${product.product_name}</td>
+                        <td>${product.product_details}</td>
+                        <td>${product.quantity} ${product.main_unit}</td>
+                        <td>${parseFloat(product.purchase_cost).toFixed(2)}</td>
+                        <td>${parseFloat(product.subtotal).toFixed(2)}</td>
+                      </tr>
+                    `
+                    )
+                    .join("")}
+                </tbody>
+              </table>
+              <div class="summary">
+                <p><strong>Subtotal:</strong> ${parseFloat(purchase?.total).toFixed(2)}</p>
+                <p><strong>Discount:</strong> ${purchase?.discount_amount} (${purchase?.discount_type})</p>
+                <p><strong>Tax:</strong> ${purchase?.order_tax}%</p>
+                <p><strong>Total Payable:</strong> ${parseFloat(purchase?.total_payable).toFixed(2)}</p>
+                <p><strong>Amount Paid:</strong> ${parseFloat(purchase?.amount_paid).toFixed(2)}</p>
+                <p><strong>Change Return:</strong> ${parseFloat(purchase?.change_return).toFixed(2)}</p>
+              </div>
+              <div class="qr-code">
+                <img src="${qrCodeImageUrl}" alt="QR Code">
+                <p><strong>Scan to Verify</strong></p>
+              </div>
+              <div class="signature-section">
+                <p>Authorized Signature</p>
+                <div class="signature-line"></div>
+              </div>
+              <div class="footer">
+                <p>Thank you for your business!</p>
+              </div>
+            </div>
+          </body>
+        </html>
+      `);
+      newWindow.document.close();
+      newWindow.focus();
+      newWindow.print();
+    };
+    
+
     
       const toggleDropdown = (index) => {
         setIsDropdownOpen(isDropdownOpen === index ? null : index); // Toggle the dropdown
       };
+      if (loading) return <Loader/>;
 
       
   return (
@@ -388,11 +404,11 @@ export default function Purchase() {
                     </div>
 
                     {/* Table Section */}
-                    <div className="overflow-x-auto dark:bg-[#212144] dark:text-white border rounded ">
+                    <div className="overflow-x-auto dark:bg-[#212144] dark:text-white border rounded h-screen">
                         <table className="min-w-full table-auto dark:text-white border-collapse border border-gray-300 text-center">
                         <thead>
                             <tr className="bg-emerald-500 text-stone-50">
-                            <th className="p-2  border border-gray-300">Bill No</th>
+                            <th className="p-2  border border-gray-300">Invoice No</th>
                             <th className="p-2  border border-gray-300">Supplier</th>
                             <th className="p-2  border border-gray-300">Purchase Date</th>
                             <th className="p-2  border border-gray-300">Items</th>
@@ -405,13 +421,17 @@ export default function Purchase() {
                         <tbody>
                             {purchases?.map((purchase, index) => (
                             <tr key={purchase.billNo} className="border-b">
-                                <td className="p-2 border border-gray-300">{purchase.billNo}</td>
+                                <td className="p-2 border border-gray-300">{purchase.invoice_no}</td>
                                 <td className="p-2 border border-gray-300">{purchase.supplier}</td>
-                                <td className="p-2 border border-gray-300">{purchase.purchaseDate}</td>
-                                <td className="p-2 border border-gray-300">{purchase.items}</td>
-                                <td className="p-2 border border-gray-300">{purchase.payable}</td>
-                                <td className="p-2 border border-gray-300">{purchase.paid}</td>
-                                <td className="p-2 border border-gray-300">{purchase.due}</td>
+                                <td className="p-2 border border-gray-300">{purchase.purchase_date}</td>
+                                <td className="p-2 border border-gray-300">
+                                  {purchase.products?.map((product) => product.product_name).join(", ")}
+                                </td>
+                                <td className="p-2 border border-gray-300">{purchase.total_payable}</td>
+                                <td className="p-2 border border-gray-300">{purchase.amount_paid}</td>
+                                <td className="p-2 border border-gray-300">
+                                {purchase.total_payable - purchase.amount_paid}
+                                </td>
                                 <td className="p-2 relative ">
                                 <button
                                     className="bg-emerald-500 text-white p-2 rounded flex items-center"

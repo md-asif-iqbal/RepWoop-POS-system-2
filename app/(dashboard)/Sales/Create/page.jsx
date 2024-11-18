@@ -355,7 +355,7 @@ export default function AddSale() {
                   <tr key={index} className="text-center">
                     <td className="p-2">{product.product_name}</td>
                     <td className="p-2">
-                      <input type="number" min="1" value={product.quantity} onChange={(e) => handleProductChange(index, 'quantity', e.target.value)} className="w-full md:w-1/2 text-center border rounded" />
+                      <input type="number" min="1" defaultValue={product.quantity} onChange={(e) => handleProductChange(index, 'quantity', e.target.value)} className="w-full md:w-1/2 text-center border rounded" />
                     </td>
                     <td className="p-2">৳ {product.sale_price}</td>
                     <td className="p-2">৳ {product.purchase_cost}</td>

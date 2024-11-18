@@ -1,159 +1,497 @@
-"use client"
-import Link from 'next/link'
-import React, { useState } from 'react';
+'use client';
 
-export default function CreatePruchase() {
-    const spanClass = " block h-0.5 bg-gradient-to-r from-pink-500 to-orange-500 scale-x-0 group-hover:scale-x-100 transition-transform origin-left duration-700"
+import Link from 'next/link';
+import React, { useState, useEffect } from 'react';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
+import { toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
-    const [suppliers, setSuppliers] = useState(['Supplier A', 'Supplier B']);
-    const [selectedSupplier, setSelectedSupplier] = useState('');
-    const [products, setProducts] = useState([]);
-    const [newProduct, setNewProduct] = useState('');
-    const [purchaseDate, setPurchaseDate] = useState(new Date().toISOString().split('T')[0]);
-  
-    const handleAddProduct = () => {
-      if (newProduct && selectedSupplier) {
-        setProducts([
-          ...products,
-          {
-            id: products.length + 1,
-            name: newProduct,
-            rate: 0,
-            qty: 1,
-            subtotal: 0,
-          },
-        ]);
-        setNewProduct('');
-      } else {
-        alert('Please select a supplier and enter a product name.');
+export default function AddPurchase() {
+  const spanClass = " block h-0.5 bg-gradient-to-r from-pink-500 to-orange-500 scale-x-0 group-hover:scale-x-100 transition-transform origin-left duration-700"
+  const [suppliers, setSuppliers] = useState([]);
+  const [selectedSupplier, setSelectedSupplier] = useState('');
+  const [purchaseDate, setPurchaseDate] = useState(new Date()); // Purchase Date
+  const [payTerm, setPayTerm] = useState('');
+  const [status, setStatus] = useState('');
+  const [invoiceScheme, setInvoiceScheme] = useState('Default');
+  const [invoiceNo, setInvoiceNo] = useState('');
+  const [products, setProducts] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [discountType, setDiscountType] = useState('Percentage');
+  const [discountAmount, setDiscountAmount] = useState(0);
+  const [orderTax, setOrderTax] = useState(0);
+  const [amountPaid, setAmountPaid] = useState(0);
+  const [changeReturn, setChangeReturn] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [paymentStatus, setPaymentStatus] = useState('unpaid');
+  const [discountedTotal, setDiscountedTotal] = useState(total);
+
+  const [accounts, setAccounts] = useState([]);
+  const [paymentDate, setPaymentDate] = useState(new Date());
+  const [paymentMethod, setPaymentMethod] = useState('Cash');
+  const [paymentAccount, setPaymentAccount] = useState({ account_id: '', name: '' });
+  const [paymentNote, setPaymentNote] = useState('');
+  const [availableProducts, setAvailableProducts] = useState([]);
+
+  const parseToNumber = (value) => (isNaN(parseFloat(value)) ? 0 : parseFloat(value));
+
+  useEffect(() => {
+    // Generate a random invoice number on load
+    setInvoiceNo(`INV-${Math.floor(Math.random() * 1000000)}`);
+  }, []);
+
+  const addProduct = (product) => {
+    const newProduct = {
+      ...product,
+      purchase_cost: parseToNumber(product.purchase_cost),
+      quantity: 1,
+      subtotal: parseToNumber(product.purchase_cost),
+    };
+    setProducts((prev) => [...prev, newProduct]);
+    calculateTotal([...products, newProduct]);
+  };
+
+  const handleProductChange = (index, field, value) => {
+    const updatedProducts = [...products];
+    updatedProducts[index][field] = field === 'quantity' ? parseToNumber(value) : value;
+
+    const quantity = parseToNumber(updatedProducts[index].quantity) || 1;
+    const unitPrice = parseToNumber(updatedProducts[index].purchase_cost) || 0;
+    updatedProducts[index].subtotal = quantity * unitPrice;
+
+    setProducts(updatedProducts);
+    calculateTotal(updatedProducts);
+  };
+
+  const calculateTotal = (productsList) => {
+    const totalAmount = productsList.reduce((sum, product) => sum + product.subtotal, 0);
+    setTotal(totalAmount);
+  };
+
+  const calculateDiscountedTotal = () => {
+    const discountValue =
+      discountType === 'Percentage'
+        ? (parseToNumber(discountAmount) / 100) * parseToNumber(total)
+        : parseToNumber(discountAmount);
+
+    const tax = parseToNumber(orderTax);
+    const finalTotal = parseToNumber(total) - discountValue + tax;
+
+    setDiscountedTotal(finalTotal);
+    setChangeReturn(parseToNumber(amountPaid) - finalTotal);
+    updatePaymentStatus(amountPaid, finalTotal);
+  };
+
+  useEffect(() => {
+    calculateDiscountedTotal();
+  }, [total, discountAmount, discountType, orderTax]);
+
+  const updatePaymentStatus = (paidAmount, totalAmount) => {
+    if (paidAmount >= totalAmount) {
+      setPaymentStatus('paid');
+    } else if (paidAmount > 0 && paidAmount < totalAmount) {
+      setPaymentStatus('partial');
+    } else {
+      setPaymentStatus('unpaid');
+    }
+  };
+
+  const handleAmountPaidChange = (e) => {
+    const paidAmount = parseToNumber(e.target.value);
+    setAmountPaid(paidAmount);
+    setChangeReturn(paidAmount - discountedTotal);
+    updatePaymentStatus(paidAmount, discountedTotal);
+  };
+
+  const handleSearch = (e) => {
+    setSearchQuery(e.target.value);
+  };
+
+  const filteredProducts = availableProducts.filter((product) =>
+    product.product_name?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const removeProduct = (index) => {
+    const updatedProducts = products.filter((_, i) => i !== index);
+    setProducts(updatedProducts);
+    calculateTotal(updatedProducts);
+  };
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const response = await fetch('/Products/Create/products');
+        if (!response.ok) throw new Error('Failed to fetch products');
+        const data = await response.json();
+        setAvailableProducts(data);
+      } catch (error) {
+        toast.error(error.message);
       }
     };
-  
-    const handleProductChange = (index, field, value) => {
-      const updatedProducts = products?.map((product, i) =>
-        i === index
-          ? { ...product, [field]: value, subtotal: field === 'qty' || field === 'rate' ? value * product.qty : product.subtotal }
-          : product
-      );
-      setProducts(updatedProducts);
-    };
-  
-    const grandTotal = products.reduce((acc, product) => acc + product.subtotal, 0);
-  
-  return (
 
-      <div className='bg-white dark:bg-[#141432] font-nunito text-sm'>
-        <div className="p-0  mt-[25%] lg:mt-[5%]  w-full">
-      {/* Title Section */}
-          <div className=" mb-4  shadow-sm  ">
-          <h1 className="text-lg dark:text-white  text-gray-500 mx-5 ">Purchase</h1>
-            <div className='flex items-start justify-start mx-5 py-5 gap-10'>
-                <Link href="/Purchase" className="group text-gray-500 dark:text-white text-md hover:text-orange-500">
-                Purchase
-                <span className={spanClass}></span>
-                </Link>
-                <Link href="/Purchase/Create" className="group text-gray-500 dark:text-white text-md hover:text-orange-500">
-                + Add Purchase
-                <span className={spanClass}></span>
-                </Link>
+    fetchProducts();
+  }, []);
+
+  useEffect(() => {
+    const fetchSuppliers = async () => {
+      try {
+        const response = await fetch('/Users/users');
+        if (!response.ok) throw new Error('Failed to fetch suppliers');
+        const data = await response.json();
+        setSuppliers(data);
+      } catch (error) {
+        toast.error(error.message);
+      }
+    };
+
+    fetchSuppliers();
+  }, []);
+
+  useEffect(() => {
+    const fetchAccounts = async () => {
+      try {
+        const response = await fetch('/Bank_Accounts/accounts');
+        if (!response.ok) throw new Error('Failed to fetch accounts');
+        const data = await response.json();
+        setAccounts(data);
+      } catch (error) {
+        toast.error(error.message);
+      }
+    };
+
+    fetchAccounts();
+  }, []);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    const formData = {
+      supplier:selectedSupplier,
+      purchaseDate, // Include purchase date in the form data
+      payTerm,
+      status,
+      invoiceScheme,
+      invoiceNo,
+      products: products.map(({ image, ...rest }) => rest),
+      total,
+      discountType,
+      discountAmount,
+      orderTax,
+      amountPaid,
+      changeReturn,
+      paymentDate,
+      paymentMethod,
+      paymentAccount: paymentAccount.account_id ? paymentAccount : null,
+      paymentNote,
+      totalPayable: discountedTotal,
+    };
+
+    try {
+      const response = await fetch('/Purchase/Create/purchase', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+
+      if (response.ok) {
+        toast.success('Purchase saved successfully!');
+      } else {
+        toast.error('Failed to save purchase. Please try again.');
+      }
+    } catch (error) {
+      toast.error('An error occurred while saving the purchase.');
+    }
+  };
+
+  return (
+    <div className="container mx-auto p-4 space-y-6 text-sm mt-[5%]">
+      <h2 className="text-xl mb-4">Add Purchase</h2>
+      <div className=" mb-4  shadow-sm ">
+      <h1 className="text-lg dark:text-white  text-gray-500 mx-5 ">Purchase</h1>
+        <div className='flex items-start justify-start mx-5 py-5 gap-10'>
+            <Link href="/Purchase" className="group text-gray-500 dark:text-white text-md hover:text-orange-500">
+            Purchase
+            <span className={spanClass}></span>
+            </Link>
+            <Link href="/Purchase/Create" className="group text-gray-500 dark:text-white text-md hover:text-orange-500">
+            + Add Purchase
+            <span className={spanClass}></span>
+            </Link>
+        </div>
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Supplier Details */}
+        <div className="bg-white shadow-md md:p-6">
+          <h3 className="mb-2">Supplier Details</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block font-semibold">Supplier:*</label>
+              <select
+                className="w-full p-2 border rounded"
+                value={selectedSupplier}
+                onChange={(e) => setSelectedSupplier(e.target.value)}
+              >
+                <option value="">Select Supplier</option>
+                {suppliers?.map((supplier) => (
+                  <option key={supplier.id} value={supplier.name}>
+                    {supplier.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block">Invoice No.:</label>
+              <input
+                type="text"
+                className="w-full p-2 border rounded"
+                value={invoiceNo}
+                onChange={(e) => setInvoiceNo(e.target.value)}
+                placeholder="Keep blank to auto generate"
+              />
+            </div>
+            <div>
+              <label className="block font-semibold">Status:*</label>
+              <select
+                className="w-full p-2 border rounded"
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+              >
+                <option value="">Select Status</option>
+                <option value="Completed">Completed</option>
+                <option value="Pending">Pending</option>
+              </select>
             </div>
           </div>
-          <div className="p-4 w-full mx-auto">
-      <h2 className="text-lg mb-4">Create Purchase</h2>
-
-      {/* Supplier and Date Selection */}
-      <div className="md:flex gap-4 mb-6">
-        <div className="w-full lg:w-1/2">
-          <label className="block mb-2 text-gray-700">Supplier</label>
-          <select
-            value={selectedSupplier}
-            onChange={(e) => setSelectedSupplier(e.target.value)}
-            className="w-full p-2 border rounded"
-          >
-            <option value="">Select Supplier</option>
-            {suppliers?.map((supplier, index) => (
-              <option key={index} value={supplier}>{supplier}</option>
-            ))}
-          </select>
+          <div className="mt-4">
+            <label className="block">Purchase Date & Time:</label>
+            <DatePicker
+              selected={purchaseDate}
+              onChange={(date) => setPurchaseDate(date)}
+              showTimeSelect
+              dateFormat="Pp"
+              className="w-full p-2 border rounded"
+            />
+          </div>
         </div>
-        <div className="w-full lg:w-1/2">
-          <label className="block mb-2 text-gray-700">Purchase Date</label>
+
+        {/* Product Selection */}
+        <div className="bg-white shadow-md md:p-6">
+          <h3 className="mb-2">Product Selection</h3>
+          <label className="block">Enter Product Name / SKU</label>
           <input
-            type="date"
-            value={purchaseDate}
-            onChange={(e) => setPurchaseDate(e.target.value)}
-            className="w-full p-2 border rounded"
+            type="text"
+            placeholder="Search Product"
+            className="w-full p-2 border rounded mb-2"
+            value={searchQuery}
+            onChange={handleSearch}
           />
+          
+          {/* Show filtered products when searching */}
+          {searchQuery && filteredProducts.length > 0 && (
+            <div className="border rounded shadow overflow-auto max-h-64">
+              {filteredProducts.map((product) => (
+                <div
+                  key={product.id}
+                  className="p-2 border-b hover:bg-gray-100 cursor-pointer"
+                  onClick={() => addProduct(product)} // Add product to the list
+                >
+                  {product.product_name}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Show the product table only when products are added */}
+          {products.length > 0 && (
+            <table className="w-full border-collapse text-center mt-4">
+              <thead>
+                <tr className="bg-gray-100">
+                  <th>Product</th>
+                  <th>Quantity</th>
+                  <th>Purchase Price</th>
+                  <th>Subtotal</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {products.map((product, index) => (
+                  <tr key={index}>
+                    <td>{product.product_name}</td>
+                    <td>
+                      <input
+                        type="number"
+                        min="1"
+                        value={product.quantity}
+                        onChange={(e) => handleProductChange(index, 'quantity', e.target.value)}
+                        className="border rounded p-1 text-center"
+                      />
+                    </td>
+                    <td>{product.purchase_cost.toFixed(2)}</td>
+                    <td>{product.subtotal.toFixed(2)}</td>
+                    <td>
+                      <button
+                        type="button"
+                        className="text-red-500"
+                        onClick={() => removeProduct(index)}
+                      >
+                        Remove
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
-      </div>
 
-      {/* Product Input */}
-      <div className="flex w-full items-center gap-4 mb-6">
-        <input
-          type="text"
-          placeholder="Write product"
-          value={newProduct}
-          onChange={(e) => setNewProduct(e.target.value)}
-          className="w-full p-2 border rounded"
-        />
-        <button onClick={handleAddProduct} className="bg-teal-500 w-full md:w-1/4 text-white px-8 py-2 rounded ">Add Product</button>
-      </div>
+        {/* Discount and Tax */}
+        <div className="bg-white shadow-md md:p-6">
+          <h3 className="mb-2">Discount and Tax</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block">Discount Type:</label>
+              <select
+                className="w-full p-2 border rounded"
+                value={discountType}
+                onChange={(e) => setDiscountType(e.target.value)}
+              >
+                <option value="Percentage">Percentage</option>
+                <option value="Fixed">Fixed</option>
+              </select>
+            </div>
+            <div>
+              <label className="block">Discount Amount:</label>
+              <input
+                type="number"
+                className="w-full p-2 border rounded"
+                value={discountAmount}
+                onChange={(e) => setDiscountAmount(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="block">Order Tax:</label>
+              <input
+                type="number"
+                className="w-full p-2 border rounded"
+                value={orderTax}
+                onChange={(e) => setOrderTax(e.target.value)}
+              />
+            </div>
+          </div>
+        </div>
 
-      {/* Products Table */}
-      <div className="overflow-x-auto">
-        <table className="w-full table-auto text-center border">
-          <thead>
-            <tr className="bg-teal-500 text-white">
-              <th className="py-2 px-4 border">#SL</th>
-              <th className="py-2 px-4 border">Product</th>
-              <th className="py-2 px-4 border">Rate</th>
-              <th className="py-2 px-4 border">Qty</th>
-              <th className="py-2 px-4 border">Sub Total</th>
-              <th className="py-2 px-4 border">Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {products?.map((product, index) => (
-              <tr key={product.id} className="border-b">
-                <td className="py-2 px-4 border">{index + 1}</td>
-                <td className="py-2 px-4 border">{product.name}</td>
-                <td className="py-2 px-4 border">
-                  <input
-                    type="number"
-                    value={product.rate}
-                    onChange={(e) => handleProductChange(index, 'rate', parseFloat(e.target.value))}
-                    className="w-full p-1 border rounded"
-                  />
-                </td>
-                <td className="py-2 px-4 border">
-                  <input
-                    type="number"
-                    value={product.qty}
-                    onChange={(e) => handleProductChange(index, 'qty', parseFloat(e.target.value))}
-                    className="w-full p-1 border rounded"
-                  />
-                </td>
-                <td className="py-2 px-4 border">Tk {product.subtotal.toFixed(2)}</td>
-                <td className="py-2 px-4 border">
-                  <button onClick={() => setProducts(products.filter((_, i) => i !== index))} className="text-red-500">Remove</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+        {/* Add Payment Section */}
+        <div className="bg-white shadow-md md:p-6">
+          <h3 className="mb-2">Add Payment</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block">Amount Paid:</label>
+              <input
+                type="number"
+                className="w-full p-2 border rounded"
+                value={amountPaid}
+                onChange={handleAmountPaidChange}
+              />
+            </div>
+            <div>
+              <label className="block">Change Return:</label>
+              <input
+                type="text"
+                className="w-full p-2 border rounded bg-gray-100"
+                value={`৳ ${changeReturn.toFixed(2)}`}
+                disabled
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+            <div>
+              <label className="block">Paid on:</label>
+              <DatePicker
+                selected={paymentDate}
+                onChange={(date) => setPaymentDate(date)}
+                showTimeSelect
+                dateFormat="Pp"
+                className="w-full p-2 border rounded"
+              />
+            </div>
+            <div>
+              <label className="block">Payment Method:</label>
+              <select
+                className="w-full p-2 border rounded"
+                value={paymentMethod}
+                onChange={(e) => setPaymentMethod(e.target.value)}
+              >
+                <option value="Cash">Cash</option>
+                <option value="Bank">Bank Transfer</option>
+                <option value="Card">Card Payment</option>
+              </select>
+            </div>
+            <div>
+              <label className="block">Payment Account:</label>
+              <select
+                className="w-full p-2 border rounded"
+                value={paymentAccount.account_id}
+                onChange={(e) => {
+                  const selectedAccountId = e.target.value;
+                  const selectedAccount = accounts.find(
+                    (acc) => acc.account_id === selectedAccountId
+                  );
 
-      {/* Grand Total */}
-      <div className="flex justify-end mt-4">
-        <p className="text-lg font-semibold">Grand Total: Tk {grandTotal.toFixed(2)}</p>
-      </div>
+                  if (selectedAccount) {
+                    setPaymentAccount({
+                      account_id: selectedAccount.account_id,
+                      name: selectedAccount.name,
+                    });
+                  } else {
+                    setPaymentAccount({ account_id: '', name: '' });
+                  }
+                }}
+              >
+                <option value="">Select the account</option>
+                {accounts.map((acc) => (
+                  <option key={acc.account_id} value={acc.account_id}>
+                    {acc.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block">Payment Note:</label>
+              <textarea
+                className="w-full p-2 border rounded"
+                value={paymentNote}
+                onChange={(e) => setPaymentNote(e.target.value)}
+                placeholder="Add payment notes here..."
+              />
+            </div>
+          </div>
+        </div>
 
-      {/* Payment Button */}
-      <button className="bg-teal-500 text-white px-4 py-2 rounded mt-4">Payment</button>
+        {/* Total Bill */}
+        <div className="mt-6">
+          <h3
+            className={`text-lg ${
+              paymentStatus === 'paid'
+                ? 'text-green-600'
+                : paymentStatus === 'partial'
+                ? 'text-yellow-600'
+                : 'text-red-600'
+            }`}
+          >
+            Total Payable: ৳ {discountedTotal.toFixed(2)}
+          </h3>
+          <div className="flex gap-4 mt-4">
+            <button type="submit" className="bg-green-500 text-white p-2 rounded">
+              Save
+            </button>
+            <button type="button" className="bg-blue-500 text-white p-2 rounded">
+              Save & Print
+            </button>
+          </div>
+        </div>
+      </form>
     </div>
-
-
-        </div>
-      </div>
-  )
+  );
 }

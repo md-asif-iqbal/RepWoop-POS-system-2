@@ -119,3 +119,98 @@ export async function POST(request) {
     });
   }
 }
+
+
+export async function PUT(request) {
+  try {
+    const { saleId, status } = await request.json();
+
+    // Validate input
+    if (!saleId) throw new Error("Sale ID is required");
+    if (!status) throw new Error("Status is required");
+
+    // Start a transaction
+    await query("BEGIN");
+
+    // Fetch sale details, including current status and products
+    const saleResult = await query(
+      `SELECT id, status, products FROM sales WHERE id = $1;`,
+      [saleId]
+    );
+
+    if (saleResult.rowCount === 0) {
+      throw new Error("Sale not found");
+    }
+
+    const sale = saleResult.rows[0];
+    const currentStatus = sale.status;
+
+    // Parse products if stored as JSON
+    const products =
+      typeof sale.products === "string"
+        ? JSON.parse(sale.products)
+        : sale.products;
+
+    console.log("Products to update stock:", products);
+
+    // Update product stock only if the new status is "Returned" and wasn't previously "Returned"
+    if (currentStatus !== "Returned" && status === "Returned") {
+      for (const product of products) {
+        const result = await query(
+          `UPDATE products 
+           SET opening_stock = opening_stock + $1 
+           WHERE id = $2 
+           RETURNING opening_stock;`,
+          [product.quantity, product.id]
+        );
+        console.log(`Updated stock for product ID ${product.id}:`, result.rows[0]);
+      }
+    }
+
+    // Update the status of the sale
+    const updateResult = await query(
+      `UPDATE sales 
+       SET status = $1 
+       WHERE id = $2 
+       RETURNING *;`,
+      [status, saleId]
+    );
+
+    if (updateResult.rowCount === 0) {
+      throw new Error("Sale not found or status unchanged");
+    }
+
+    // Commit the transaction
+    await query("COMMIT");
+
+    return new Response(
+      JSON.stringify({
+        message: "Sale status and product stock updated successfully",
+        sale: updateResult.rows[0],
+      }),
+      {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
+  } catch (error) {
+    console.error("Error updating sale status or product stock:", error);
+
+    // Rollback the transaction in case of an error
+    await query("ROLLBACK");
+
+    return new Response(
+      JSON.stringify({
+        error: error.message || "Failed to update sale status or product stock",
+      }),
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
+  }
+}
+
+
+
+

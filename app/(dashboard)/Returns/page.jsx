@@ -2,122 +2,90 @@
 
 
 import Image from "next/image";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { toast } from "react-toastify";
 import { RiDeleteBin5Line } from "react-icons/ri";
 import { TbEdit } from "react-icons/tb";
 import { CiSearch } from "react-icons/ci";
 import { BadgePlus } from "lucide-react";
 const SalesReturnList = () => {
+  const [returnedSales, setReturnedSales] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCustomer, setSelectedCustomer] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("");
   const [selectedPaymentStatus, setSelectedPaymentStatus] = useState("");
   const [sortBy, setSortBy] = useState("date");
 
-  const salesReturns = [
-    {
-      productName: "Macbook Pro",
-      date: "19 Nov 2022",
-      customer: "Thomas",
-      status: "Received",
-      grandTotal: 550,
-      paid: 120,
-      due: 550,
-      paymentStatus: "Paid",
-    },
-    {
-      productName: "Orange",
-      date: "19 Nov 2022",
-      customer: "Benjamin",
-      status: "Pending",
-      grandTotal: 550,
-      paid: 120,
-      due: 550,
-      paymentStatus: "Unpaid",
-    },
-    {
-      productName: "Pineapple",
-      date: "19 Nov 2022",
-      customer: "James",
-      status: "Pending",
-      grandTotal: 210,
-      paid: 120,
-      due: 210,
-      paymentStatus: "Unpaid",
-    },
-    {
-      productName: "Strawberry",
-      date: "19 Nov 2022",
-      customer: "Bruklin",
-      status: "Received",
-      grandTotal: 210,
-      paid: 120,
-      due: 210,
-      paymentStatus: "Paid",
-    },
-    {
-      productName: "Strawberry",
-      date: "19 Nov 2022",
-      customer: "Bruklin",
-      status: "Received",
-      grandTotal: 210,
-      paid: 120,
-      due: 210,
-      paymentStatus: "Paid",
-    },
-    {
-      productName: "Macbook Pro",
-      date: "19 Nov 2022",
-      customer: "Best Power Tools",
-      status: "Received",
-      grandTotal: 210,
-      paid: 120,
-      due: 210,
-      paymentStatus: "Paid",
-    },
-    {
-      productName: "Avocat",
-      date: "19 Nov 2022",
-      customer: "Beverly",
-      status: "Pending",
-      grandTotal: 210,
-      paid: 120,
-      due: 210,
-      paymentStatus: "Unpaid",
-    },
-    {
-      productName: "Apple Earpods",
-      date: "19 Nov 2022",
-      customer: "Apex Computers",
-      status: "Ordered",
-      grandTotal: 1000,
-      paid: 500,
-      due: 1000,
-      paymentStatus: "Partial",
-    },
-  ];
-    const uniqueCustomers = [...new Set(salesReturns?.map((item) => item.customer))];
-    const uniqueStatuses = [...new Set(salesReturns?.map((item) => item.status))];
-    const uniquePaymentStatuses = [...new Set(salesReturns?.map((item) => item.paymentStatus))];
+   // model add new return item
+   const [isOpen, setIsOpen] = useState(false);
+  
+   // State to store input values and totals
+   const [orderTax, setOrderTax] = useState(0);
+   const [discount, setDiscount] = useState(0);
+   const [shipping, setShipping] = useState(0);
+   const [subtotal, setSubtotal] = useState(20); // Example subtotal from the table
+   const [grandTotal, setGrandTotal] = useState(0);
+
+   useEffect(() => {
+    // Fetch returned sales from the backend
+    const fetchReturnedSales = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch("/Returns/return"); // Adjust endpoint as needed
+        if (!response.ok) {
+          throw new Error("Failed to fetch returned sales");
+        }
+        const data = await response.json();
+        setReturnedSales(data.sales || []);
+      } catch (error) {
+        setError(error.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchReturnedSales();
+  }, []);
+
+  if (loading) return <p>Loading...</p>;
+  if (error) return <p className="text-red-500">Error: {error}</p>;
+
+  // Generate unique dropdown options
+  const uniqueCustomers = [...new Set(returnedSales.map((item) => item.selected_customer))];
+  const uniqueStatuses = [...new Set(returnedSales.map((item) => item.status))];
+  const uniquePaymentStatuses = [...new Set(returnedSales.map((item) => item.status))];
 
   // Filter logic
-  const filteredSalesReturns = salesReturns.filter((returnItem) => {
+  const filteredSalesReturns = returnedSales.filter((sale) => {
+    const productMatch = sale.products.some((product) =>
+      product.product_name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
     return (
-      returnItem.productName.toLowerCase().includes(searchTerm.toLowerCase()) &&
-      (selectedCustomer === "" || returnItem.customer === selectedCustomer) &&
-      (selectedStatus === "" || returnItem.status === selectedStatus) &&
-      (selectedPaymentStatus === "" || returnItem.paymentStatus === selectedPaymentStatus)
+      productMatch &&
+      (selectedCustomer === "" || sale.selected_customer === selectedCustomer) &&
+      (selectedStatus === "" || sale.status === selectedStatus) &&
+      (selectedPaymentStatus === "" || sale.paymentStatus === selectedPaymentStatus)
     );
   });
-  // model add new return item
-  const [isOpen, setIsOpen] = useState(false);
-  
-  // State to store input values and totals
-  const [orderTax, setOrderTax] = useState(0);
-  const [discount, setDiscount] = useState(0);
-  const [shipping, setShipping] = useState(0);
-  const [subtotal, setSubtotal] = useState(20); // Example subtotal from the table
-  const [grandTotal, setGrandTotal] = useState(0);
+
+  // Handle Sorting
+  const sortedSalesReturns = filteredSalesReturns.sort((a, b) => {
+    if (sortBy === "date") {
+      return new Date(a.sale_date) - new Date(b.sale_date);
+    }
+    if (sortBy === "customer") {
+      return a.selected_customer.localeCompare(b.selected_customer);
+    }
+    return 0;
+  });
+
+  const handleSearch = (e) => {
+    setSearchTerm(e.target.value);
+    notify("Search term updated", "success");
+  };
+ 
 
   const openModal = () => {
     setIsOpen(true);
@@ -310,153 +278,135 @@ const SalesReturnList = () => {
 
 
 
-  {/* Search, Filters, and Sort Section */}
-  <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-4">
-    {/* Search Bar */}
-    <div className="relative">
-      <input
-        type="text"
-        placeholder="Search"
-        className="border rounded px-4 py-2 w-full dark:text-black bg-white"
-        value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
-      />
-      <button className="absolute top-1/2 right-2 transform -translate-y-1/2 text-gray-500">
-      <CiSearch size={20}/>
-      </button>
-    </div>
-    {/* Customer Filter */}
-    <select
-      className="border rounded px-4 py-2 w-full dark:text-black"
-      value={selectedCustomer}
-      onChange={(e) => setSelectedCustomer(e.target.value)}
-    >
-      <option value="">Choose Customer</option>
-      {/* <!-- Add customer options here --> */}
-      {uniqueCustomers?.map((customer, index) => (
-        <option key={index} value={customer}>
-          {customer}
-        </option>
-      ))}
-    </select>
-    {/* Status Filter */}
-    <select
-      className="border rounded px-4 py-2 w-full dark:text-black"
-      value={selectedStatus}
-      onChange={(e) => setSelectedStatus(e.target.value)}
-    >
-      <option value="">Choose Status</option>
-      {uniqueStatuses?.map((status, index) => (
-          <option key={index} value={status}>
-            {status}
-          </option>
-        ))}
-    </select>
-    {/* Payment Status Filter */}
-    <select
-      className="border rounded px-4 py-2 w-full dark:text-black"
-      value={selectedPaymentStatus}
-      onChange={(e) => setSelectedPaymentStatus(e.target.value)}
-    >
-      <option value="">Choose Payment Status</option>
-      {uniquePaymentStatuses?.map((paymentStatus, index) => (
-          <option key={index} value={paymentStatus}>
-            {paymentStatus}
-          </option>
-        ))}
-    </select>
-  </div>
+<div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-4">
+        {/* Search Bar */}
+        <div className="relative">
+          <input
+            type="text"
+            placeholder="Search"
+            className="border rounded px-4 py-2 w-full dark:text-black bg-white"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+          <button className="absolute top-1/2 right-2 transform -translate-y-1/2 text-gray-500">
+            <CiSearch size={20} />
+          </button>
+        </div>
 
-  {/* Sort by Date */}
-  <div className="flex justify-end mb-4">
-    <select
-      className="border rounded px-4 py-2 dark:text-black"
-      value={sortBy}
-      onChange={(e) => setSortBy(e.target.value)}
-    >
-      <option value="date">Sort by Date</option>
-      {/* <!-- Additional sorting options --> */}
-    </select>
-  </div>
+        {/* Customer Filter */}
+        <select
+          className="border rounded px-4 py-2 w-full dark:text-black"
+          value={selectedCustomer}
+          onChange={(e) => setSelectedCustomer(e.target.value)}
+        >
+          <option value="">Choose Customer</option>
+          {uniqueCustomers?.map((customer, index) => (
+            <option key={index} value={customer}>
+              {customer}
+            </option>
+          ))}
+        </select>
 
-  {/* Sales Return Table */}
-  <div className="overflow-x-auto dark:bg-[#141432]">
-    <table className="w-full bg-white dark:bg-[#29294e] border rounded-md shadow-sm text-center border-collapse">
-      <thead className="">
-        <tr className="bg-emerald-500 text-white ">
-        <th className="p-2 ">Product</th>
-    
-          <th className="p-2  ">Product Image</th>
-          <th className="p-2 ">Product Name</th>
-          <th className="p-2 ">Date</th>
-          <th className="p-2 ">Customer</th>
-          <th className="p-2 ">Status</th>
-          <th className="p-2 ">Grand Total ($)</th>
-          <th className="p-2 ">Paid ($)</th>
-          <th className="p-2 ">Due ($)</th>
-          <th className="p-2 ">Payment Status</th>
-          <th className="p-2 ">Action</th>
-        </tr>
-      </thead>
-      <tbody>
-        {filteredSalesReturns?.map((returnItem, index) => (
-          <tr key={index} className="border-t border-r border-b border-l">
-            {/* Select Checkbox */}
-            <td className="p-2 border">
-              <input  type="checkbox" value={returnItem.productId} className="p-5 bg-white" />
-            </td>
-         
-            {/* Product Image */}
-            <td className="p-2 border">
-              <Image src={returnItem.productImage} alt={returnItem.productName} className="w-12 h-12 rounded-full"/>
-            </td>
-            <td className="p-2 border">{returnItem.productName}</td>
-            <td className="p-2 border">{returnItem.date}</td>
-            <td className="p-2 border">{returnItem.customer}</td>
-            <td className="p-2 border">
-              <span
-                className={`px-2 py-1 text-xs  rounded-full ${
-                  returnItem.status === "Received"
-                    ? "bg-green-100 text-green-700 "
-                    : returnItem.status === "Pending"
-                    ? "bg-red-100 text-red-700"
-                    : "bg-yellow-100 text-yellow-700"
-                }`}
-              >
-                {returnItem.status}
-              </span>
-            </td>
-            <td className="p-2 border">{returnItem.grandTotal}</td>
-            <td className="p-2 border">{returnItem.paid}</td>
-            <td className="p-2 border">{returnItem.due}</td>
-            <td className="p-2 border">
-              <span
-                className={`px-2 py-1 text-xs  rounded-full ${
-                  returnItem.paymentStatus === "Paid"
-                    ? "bg-green-100 text-green-700"
-                    : returnItem.paymentStatus === "Unpaid"
-                    ? "bg-red-100 text-red-700"
-                    : "bg-yellow-100 text-yellow-700"
-                }`}
-              >
-                {returnItem.paymentStatus}
-              </span>
-            </td>
-            <td className="p-2 flex space-x-2">
-              <div className="flex item-center justify-center gap-5">
-                <button className="p-1  border-2 transform text-blue-600 hover:text-blue-500 hover:scale-110">
-                  <TbEdit size={16}/>
-                </button>
-                <button className="p-1  transform text-red-600 hover:text-red-500 hover:scale-110 border-2">
-                  <RiDeleteBin5Line size={16}/>
-                </button>
-              </div>
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  </div>
+        {/* Status Filter */}
+        <select
+          className="border rounded px-4 py-2 w-full dark:text-black"
+          value={selectedStatus}
+          onChange={(e) => setSelectedStatus(e.target.value)}
+        >
+          <option value="">Choose Status</option>
+          {uniqueStatuses?.map((status, index) => (
+            <option key={index} value={status}>
+              {status}
+            </option>
+          ))}
+        </select>
+
+        
+      </div>
+
+      {/* Sales Return Table */}
+      <div className="overflow-x-auto dark:bg-[#141432]">
+        <table className="w-full bg-white dark:bg-[#29294e] border rounded-md shadow-sm text-center border-collapse">
+          <thead>
+            <tr className="bg-emerald-500 text-white">
+            <th className="p-2">Invoice No.</th>
+              <th className="p-2">Product Name</th>
+              <th className="p-2">Date</th>
+              <th className="p-2">Customer</th>
+              
+              <th className="p-2">Grand Total ($)</th>
+              <th className="p-2">Paid ($)</th>
+              <th className="p-2">Due ($)</th>
+              <th className="p-2">Status</th>
+              <th className="p-2">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+          {sortedSalesReturns.length > 0 ? (
+              sortedSalesReturns.map((sale, index) =>
+                sale.products.map((product, productIndex) => (
+                <tr
+                  key={productIndex}
+                  className="border-t border-r border-b border-l hover:bg-gray-50 dark:hover:bg-[#1d1d33]"
+                >
+                    <td className="p-2 border">
+                    {sale.invoice_no}
+                  </td>
+                    <td className="p-2 border">{product.product_name}</td>
+                    <td className="p-2 border">
+                      {new Date(sale.sale_date).toLocaleDateString()}
+                    </td>
+                    <td className="p-2 border">{sale.selected_customer}</td>
+
+                  {/* Status */}
+                  
+
+                  <td className="p-2 border">${parseFloat(sale.total).toFixed(2)}</td>
+                    <td className="p-2 border">${parseFloat(sale.amount_paid).toFixed(2)}</td>
+                    <td className="p-2 border">${parseFloat(sale.total_payable - sale.amount_paid).toFixed(2)}</td>
+
+                  {/* Payment Status */}
+                  <td className="p-2 border">
+                    <span
+                      className={`px-2 py-1 text-xs rounded-full ${
+                        sale.status === "Paid"
+                          ? "bg-green-100 text-green-700"
+                          : sale.status === "Returned"
+                          ? "bg-red-100 text-red-700"
+                          : "bg-yellow-100 text-yellow-700"
+                      }`}
+                    >
+                      {sale.status}
+                    </span>
+                  </td>
+
+                  {/* Actions */}
+                  <td className="p-2 flex space-x-2">
+                    <button
+                      className="p-1 border-2 transform text-blue-600 hover:text-blue-500 hover:scale-110"
+                      onClick={() => console.log("Edit clicked", sale)}
+                    >
+                      <TbEdit size={16} />
+                    </button>
+                    <button
+                      className="p-1 transform text-red-600 hover:text-red-500 hover:scale-110 border-2"
+                      onClick={() => console.log("Delete clicked", sale)}
+                    >
+                      <RiDeleteBin5Line size={16} />
+                    </button>
+                  </td>
+                </tr>
+              )))
+            ) : (
+              <tr>
+                <td colSpan={9} className="p-4 text-gray-500">
+                  No sales returns match the selected criteria.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
     </div>
 
