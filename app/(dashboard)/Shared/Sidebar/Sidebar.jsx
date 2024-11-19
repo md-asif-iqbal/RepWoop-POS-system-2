@@ -166,7 +166,7 @@ export default function Sidebar() {
                             </div>
                         </Link>
                         </li>
-                        <li>
+                        {/* <li>
                         
                         <Link href="/Cash_Book" className=
                         {`${
@@ -182,7 +182,7 @@ export default function Sidebar() {
                           <span className={spanClass}></span>
                           </div>
                         </Link>
-                        </li>
+                        </li> */}
                         
                     </ul>
                 </div>

@@ -28,60 +28,6 @@ export default function Home() {
     }
   }, []);
 
-  // Data for the Bar Chart
-  const data = {
-    labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep"],
-    datasets: [
-      {
-        label: "Sales",
-        data: [100, 200, 150, 220, 180, 250, 270, 240, 300,400],
-        backgroundColor: "#28C76F", // Green for sales
-        hoverbackgroundColor: "#65FA9E", // hover Green for sales
-        borderColor: "#65FA9E",
-        borderWidth: 1,
-        borderRadius: 20,
-        barThickness: 20,
-      },
-      {
-        label: "Purchase",
-        data: [-150, -180, -120, -170, -130, -210, -190, -160, -200,-300],
-        backgroundColor: "#FF4D4D", // Red for purchases
-        hoverbackgroundColor: "#E4E2E2",
-        borderColor: "#FF8585",
-        borderWidth: 1,
-        borderRadius: 20,
-        barThickness: 20,
-      },
-    ],
-  };
-
-  // Chart options for a stacked bar chart
-  const options = {
-    scales: {
-      x: {
-      
-        stacked: true, // Stack the x-axis
-        grid: {
-           // Light grid lines for x-axis
-        },
-        ticks: {
-           // White tick labels for x-axis
-        },
-      },
-      y: {
-        stacked: true, // Stack the y-axis
-        beginAtZero: true,
-        grid: {
-           // Light grid lines
-        },
-        ticks: {
-           // White tick labels for y-axis
-        },
-      },
-    },
-
-    responsive: true,
-  };
 
   // Get the current date
   const date = new Date();
@@ -234,25 +180,7 @@ export default function Home() {
       </div>
     </div>
 
-          <div className="grid min-w-full grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Chart Area */}
-            <div className="mt-8   shadow-sm dark:bg-[#202047]">
-              <h3 className="  mb-4">Purchase & Sales</h3>
-              <div className="flex justify-between mb-4">
-                <div className="text-green-500">Sales</div>
-                <div className="text-red-500">Purchase</div>
-                <select className="bg-white dark:bg-[#303063] rounded py-2 text-black dark:text-white">
-                  <option>2023</option>
-                  <option>2022</option>
-                  <option>2021</option>
-                </select>
-              </div>
 
-              {/* Stacked Bar Chart */}
-              <Bar data={data} options={options} />
-            </div>
-
-          </div>
         </div>
         <div className="p-4">
       <h2 className=" dark:text-white text-md  mb-4 ">Expired Products</h2>

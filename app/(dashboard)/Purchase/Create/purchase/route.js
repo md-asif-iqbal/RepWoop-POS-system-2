@@ -85,7 +85,7 @@ export async function GET(request) {
       } = await request.json();
   
       // Log received data for debugging
-      console.log('Received Purchase Data:', {
+      console.log("Received Purchase Data:", {
         supplier,
         products,
         amountPaid,
@@ -94,11 +94,11 @@ export async function GET(request) {
   
       // Ensure required fields are present
       if (!supplier || !products || products.length === 0) {
-        throw new Error('Missing required fields: supplier or products');
+        throw new Error("Missing required fields: supplier or products");
       }
   
       // Start a database transaction
-      await query('BEGIN');
+      await query("BEGIN");
   
       // Insert the purchase record into the purchase table
       const purchaseResult = await query(
@@ -132,16 +132,19 @@ export async function GET(request) {
       );
   
       // Log purchase insertion result
-      console.log('Purchase inserted:', purchaseResult.rows[0]);
+      console.log("Purchase inserted:", purchaseResult.rows[0]);
   
-      // Update the stock for each product
+      // Update the stock for each product and add an expense for each product
       for (const product of products) {
-        const { id, quantity } = product;
+        const { id, product_name, quantity, subtotal } = product;
   
         if (!id || !quantity) {
-          throw new Error('Product ID and quantity are required for stock update');
+          throw new Error(
+            "Product ID and quantity are required for stock update"
+          );
         }
   
+        // Update stock for the product
         const stockUpdateResult = await query(
           `UPDATE products
            SET opening_stock = opening_stock + $1
@@ -151,6 +154,22 @@ export async function GET(request) {
   
         // Log stock update result
         console.log(`Product ID ${id} stock updated:`, stockUpdateResult.rowCount);
+  
+        // Insert an expense for this product
+        const expenseResult = await query(
+          `INSERT INTO expenses 
+            (invoice_no, name, amount, created_at)
+           VALUES ($1, $2, $3, NOW())
+           RETURNING *;`,
+          [
+            invoiceNo,
+            product_name, // Use product name as the expense name
+            parseFloat(subtotal) || 0, // Use subtotal as the amount
+          ]
+        );
+  
+        // Log expense insertion result
+        console.log("Expense recorded for product:", expenseResult.rows[0]);
       }
   
       // Update balance in the selected payment account, if provided
@@ -170,26 +189,29 @@ export async function GET(request) {
       }
   
       // Commit transaction
-      await query('COMMIT');
+      await query("COMMIT");
   
       // Return success response
       return new Response(
         JSON.stringify({
-          message: 'Purchase saved successfully',
+          message: "Purchase saved successfully",
           purchase: purchaseResult.rows[0],
         }),
-        { status: 201, headers: { 'Content-Type': 'application/json' } }
+        { status: 201, headers: { "Content-Type": "application/json" } }
       );
     } catch (error) {
-      console.error('Error saving purchase:', error);
+      console.error("Error saving purchase:", error);
   
       // Rollback transaction in case of error
-      await query('ROLLBACK');
+      await query("ROLLBACK");
   
       return new Response(
-        JSON.stringify({ error: error.message || 'Failed to save purchase' }),
-        { status: 500, headers: { 'Content-Type': 'application/json' } }
+        JSON.stringify({
+          error: error.message || "Failed to save purchase",
+        }),
+        { status: 500, headers: { "Content-Type": "application/json" } }
       );
     }
   }
+  
   

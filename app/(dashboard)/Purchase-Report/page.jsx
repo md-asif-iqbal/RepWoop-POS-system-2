@@ -100,7 +100,7 @@ export default function PurchaseReport() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8 text-sm">
+    <div className="container mx-auto px-4 py-8 text-sm mt-[20%] md:mt-[5%]">
       <h1 className="text-lg font-semibold mb-4">Purchase Report</h1>
 
       {/* Filters */}
