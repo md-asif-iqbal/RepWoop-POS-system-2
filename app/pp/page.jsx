@@ -1,482 +1,256 @@
-'use client';
+"use client";
+import React, { useState, useEffect } from "react";
 
-import React, { useState, useEffect } from 'react';
-import DatePicker from 'react-datepicker';
-import 'react-datepicker/dist/react-datepicker.css';
-import { toast } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
-
-export default function AddPurchase() {
-  const [suppliers, setSuppliers] = useState([]);
-  const [selectedSupplier, setSelectedSupplier] = useState('');
-  const [purchaseDate, setPurchaseDate] = useState(new Date()); // Purchase Date
-  const [payTerm, setPayTerm] = useState('');
-  const [status, setStatus] = useState('');
-  const [invoiceScheme, setInvoiceScheme] = useState('Default');
-  const [invoiceNo, setInvoiceNo] = useState('');
+export default function CategorySalesPurchasesReport() {
+  const [sales, setSales] = useState([]);
+  const [purchases, setPurchases] = useState([]);
   const [products, setProducts] = useState([]);
-  const [total, setTotal] = useState(0);
-  const [discountType, setDiscountType] = useState('Percentage');
-  const [discountAmount, setDiscountAmount] = useState(0);
-  const [orderTax, setOrderTax] = useState(0);
-  const [amountPaid, setAmountPaid] = useState(0);
-  const [changeReturn, setChangeReturn] = useState(0);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [paymentStatus, setPaymentStatus] = useState('unpaid');
-  const [discountedTotal, setDiscountedTotal] = useState(total);
+  const [reportData, setReportData] = useState([]);
+  const [filteredData, setFilteredData] = useState([]);
+  const [categoryFilter, setCategoryFilter] = useState("");
+  const [brandFilter, setBrandFilter] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 15;
 
-  const [accounts, setAccounts] = useState([]);
-  const [paymentDate, setPaymentDate] = useState(new Date());
-  const [paymentMethod, setPaymentMethod] = useState('Cash');
-  const [paymentAccount, setPaymentAccount] = useState({ account_id: '', name: '' });
-  const [paymentNote, setPaymentNote] = useState('');
-  const [availableProducts, setAvailableProducts] = useState([]);
-
-  const parseToNumber = (value) => (isNaN(parseFloat(value)) ? 0 : parseFloat(value));
-
+  // Fetch data from APIs
   useEffect(() => {
-    // Generate a random invoice number on load
-    setInvoiceNo(`INV-${Math.floor(Math.random() * 1000000)}`);
+    const fetchData = async () => {
+      try {
+        const [salesResponse, purchasesResponse, productsResponse] = await Promise.all([
+          fetch("/Sales/Create/sales"),
+          fetch("/Purchase/Create/purchase"),
+          fetch("/Products/Create/products"),
+        ]);
+
+        if (!salesResponse.ok) throw new Error("Failed to fetch sales");
+        if (!purchasesResponse.ok) throw new Error("Failed to fetch purchases");
+        if (!productsResponse.ok) throw new Error("Failed to fetch products");
+
+        const salesData = await salesResponse.json();
+        const purchasesData = await purchasesResponse.json();
+        const productsData = await productsResponse.json();
+
+        generateReport(salesData, purchasesData.purchases, productsData);
+      } catch (error) {
+        console.error("Error fetching data:", error);
+      }
+    };
+
+    fetchData();
   }, []);
 
-  const addProduct = (product) => {
-    const newProduct = {
-      ...product,
-      purchase_cost: parseToNumber(product.purchase_cost),
-      quantity: 1,
-      subtotal: parseToNumber(product.purchase_cost),
-    };
-    setProducts((prev) => [...prev, newProduct]);
-    calculateTotal([...products, newProduct]);
+  // Generate report data
+  const generateReport = (salesData, purchasesData, productsData) => {
+    const productsInPurchases = purchasesData.flatMap((purchase) => purchase.products || []);
+
+    const report = productsData.reduce((acc, product) => {
+      const productSales = salesData
+        .flatMap((sale) => sale.products || [])
+        .filter((saleItem) => saleItem.id === product.id);
+
+      const productPurchases = productsInPurchases.filter(
+        (purchaseItem) => purchaseItem.id === product.id
+      );
+
+      const totalSalesQty = productSales.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+      const totalPurchaseQty = productPurchases.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+      const totalSalesAmount = productSales.reduce((sum, item) => sum + Number(item.subtotal || 0), 0);
+      const totalPurchaseAmount = productPurchases.reduce((sum, item) => sum + Number(item.subtotal || 0), 0);
+      const profit = totalSalesAmount - totalPurchaseAmount;
+
+      const key = `${product.category}-${product.brand}`;
+      if (!acc[key]) {
+        acc[key] = {
+          id: Object.keys(acc).length + 1,
+          category: product.category || "N/A",
+          brand: product.brand || "N/A",
+          totalSalesQty: 0,
+          totalPurchaseQty: 0,
+          totalSalesAmount: 0,
+          totalPurchaseAmount: 0,
+          profit: 0,
+        };
+      }
+
+      acc[key].totalSalesQty += totalSalesQty;
+      acc[key].totalPurchaseQty += totalPurchaseQty;
+      acc[key].totalSalesAmount += totalSalesAmount;
+      acc[key].totalPurchaseAmount += totalPurchaseAmount;
+      acc[key].profit += profit;
+
+      return acc;
+    }, {});
+
+    setReportData(Object.values(report));
+    setFilteredData(Object.values(report));
   };
 
-  const handleProductChange = (index, field, value) => {
-    const updatedProducts = [...products];
-    updatedProducts[index][field] = field === 'quantity' ? parseToNumber(value) : value;
+  const formatCurrency = (amount) => `${Number(amount || 0).toLocaleString()} TK`;
 
-    const quantity = parseToNumber(updatedProducts[index].quantity) || 1;
-    const unitPrice = parseToNumber(updatedProducts[index].purchase_cost) || 0;
-    updatedProducts[index].subtotal = quantity * unitPrice;
+  const filterData = () => {
+    let filtered = reportData;
 
-    setProducts(updatedProducts);
-    calculateTotal(updatedProducts);
-  };
-
-  const calculateTotal = (productsList) => {
-    const totalAmount = productsList.reduce((sum, product) => sum + product.subtotal, 0);
-    setTotal(totalAmount);
-  };
-
-  const calculateDiscountedTotal = () => {
-    const discountValue =
-      discountType === 'Percentage'
-        ? (parseToNumber(discountAmount) / 100) * parseToNumber(total)
-        : parseToNumber(discountAmount);
-
-    const tax = parseToNumber(orderTax);
-    const finalTotal = parseToNumber(total) - discountValue + tax;
-
-    setDiscountedTotal(finalTotal);
-    setChangeReturn(parseToNumber(amountPaid) - finalTotal);
-    updatePaymentStatus(amountPaid, finalTotal);
-  };
-
-  useEffect(() => {
-    calculateDiscountedTotal();
-  }, [total, discountAmount, discountType, orderTax]);
-
-  const updatePaymentStatus = (paidAmount, totalAmount) => {
-    if (paidAmount >= totalAmount) {
-      setPaymentStatus('paid');
-    } else if (paidAmount > 0 && paidAmount < totalAmount) {
-      setPaymentStatus('partial');
-    } else {
-      setPaymentStatus('unpaid');
+    if (categoryFilter) {
+      filtered = filtered.filter((item) => item.category === categoryFilter);
     }
-  };
 
-  const handleAmountPaidChange = (e) => {
-    const paidAmount = parseToNumber(e.target.value);
-    setAmountPaid(paidAmount);
-    setChangeReturn(paidAmount - discountedTotal);
-    updatePaymentStatus(paidAmount, discountedTotal);
-  };
-
-  const handleSearch = (e) => {
-    setSearchQuery(e.target.value);
-  };
-
-  const filteredProducts = availableProducts.filter((product) =>
-    product.product_name?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const removeProduct = (index) => {
-    const updatedProducts = products.filter((_, i) => i !== index);
-    setProducts(updatedProducts);
-    calculateTotal(updatedProducts);
-  };
-
-  useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        const response = await fetch('/Products/Create/products');
-        if (!response.ok) throw new Error('Failed to fetch products');
-        const data = await response.json();
-        setAvailableProducts(data);
-      } catch (error) {
-        toast.error(error.message);
-      }
-    };
-
-    fetchProducts();
-  }, []);
-
-  useEffect(() => {
-    const fetchSuppliers = async () => {
-      try {
-        const response = await fetch('/Users/users');
-        if (!response.ok) throw new Error('Failed to fetch suppliers');
-        const data = await response.json();
-        setSuppliers(data);
-      } catch (error) {
-        toast.error(error.message);
-      }
-    };
-
-    fetchSuppliers();
-  }, []);
-
-  useEffect(() => {
-    const fetchAccounts = async () => {
-      try {
-        const response = await fetch('/Bank_Accounts/accounts');
-        if (!response.ok) throw new Error('Failed to fetch accounts');
-        const data = await response.json();
-        setAccounts(data);
-      } catch (error) {
-        toast.error(error.message);
-      }
-    };
-
-    fetchAccounts();
-  }, []);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    const formData = {
-      selectedSupplier,
-      purchaseDate, // Include purchase date in the form data
-      payTerm,
-      status,
-      invoiceScheme,
-      invoiceNo,
-      products: products.map(({ image, ...rest }) => rest),
-      total,
-      discountType,
-      discountAmount,
-      orderTax,
-      amountPaid,
-      changeReturn,
-      paymentDate,
-      paymentMethod,
-      paymentAccount: paymentAccount.account_id ? paymentAccount : null,
-      paymentNote,
-      totalPayable: discountedTotal,
-    };
-
-    try {
-      const response = await fetch('/Purchases/Create/purchases', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
-
-      if (response.ok) {
-        toast.success('Purchase saved successfully!');
-      } else {
-        toast.error('Failed to save purchase. Please try again.');
-      }
-    } catch (error) {
-      toast.error('An error occurred while saving the purchase.');
+    if (brandFilter) {
+      filtered = filtered.filter((item) => item.brand === brandFilter);
     }
+
+    if (startDate && endDate) {
+      filtered = filtered.filter(
+        (item) =>
+          new Date(item.date) >= new Date(startDate) &&
+          new Date(item.date) <= new Date(endDate)
+      );
+    }
+
+    setFilteredData(filtered);
+    setCurrentPage(1);
+  };
+
+  const resetFilter = () => {
+    setCategoryFilter("");
+    setBrandFilter("");
+    setStartDate("");
+    setEndDate("");
+    setFilteredData(reportData);
+    setCurrentPage(1);
+  };
+
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentData = filteredData.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+
+  const handlePageChange = (pageNumber) => setCurrentPage(pageNumber);
+
+  const handlePrint = () => {
+    const printContent = document.getElementById("table-to-print").outerHTML;
+    const newWindow = window.open("", "_blank");
+    newWindow.document.write(`
+      <html>
+        <head>
+          <title>Sales Purchases Report</title>
+          <style>
+            body { font-family: Arial, sans-serif; }
+            table { border-collapse: collapse; width: 100%; }
+            th, td { border: 1px solid #000; padding: 8px; text-align: left; }
+          </style>
+        </head>
+        <body onload="window.print()">
+          ${printContent}
+        </body>
+      </html>
+    `);
+    newWindow.document.close();
   };
 
   return (
-    <div className="container mx-auto p-4 space-y-6 text-sm mt-[5%]">
-      <h2 className="text-xl mb-4">Add Purchase</h2>
+    <div className="container mx-auto px-4 py-8 text-sm">
+      <h1 className="text-lg font-semibold mb-4">Category-wise Sales and Purchases Report</h1>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Supplier Details */}
-        <div className="bg-white shadow-md md:p-6">
-          <h3 className="mb-2">Supplier Details</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block font-semibold">Supplier:*</label>
-              <select
-                className="w-full p-2 border rounded"
-                value={selectedSupplier}
-                onChange={(e) => setSelectedSupplier(e.target.value)}
-              >
-                <option value="">Select Supplier</option>
-                {suppliers?.map((supplier) => (
-                  <option key={supplier.id} value={supplier.name}>
-                    {supplier.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block">Invoice No.:</label>
-              <input
-                type="text"
-                className="w-full p-2 border rounded"
-                value={invoiceNo}
-                onChange={(e) => setInvoiceNo(e.target.value)}
-                placeholder="Keep blank to auto generate"
-              />
-            </div>
-            <div>
-              <label className="block font-semibold">Status:*</label>
-              <select
-                className="w-full p-2 border rounded"
-                value={status}
-                onChange={(e) => setStatus(e.target.value)}
-              >
-                <option value="">Select Status</option>
-                <option value="Completed">Completed</option>
-                <option value="Pending">Pending</option>
-              </select>
-            </div>
-          </div>
-          <div className="mt-4">
-            <label className="block">Purchase Date & Time:</label>
-            <DatePicker
-              selected={purchaseDate}
-              onChange={(date) => setPurchaseDate(date)}
-              showTimeSelect
-              dateFormat="Pp"
-              className="w-full p-2 border rounded"
-            />
-          </div>
-        </div>
+      <div className="flex flex-wrap gap-4 mb-4">
+        <select
+          value={categoryFilter}
+          onChange={(e) => setCategoryFilter(e.target.value)}
+          className="border p-2 rounded-md"
+        >
+          <option value="">Select Category</option>
+          {[...new Set(reportData.map((item) => item.category))].map((category) => (
+            <option key={category} value={category}>
+              {category}
+            </option>
+          ))}
+        </select>
 
-        {/* Product Selection */}
-        <div className="bg-white shadow-md md:p-6">
-          <h3 className="mb-2">Product Selection</h3>
-          <label className="block">Enter Product Name / SKU</label>
-          <input
-            type="text"
-            placeholder="Search Product"
-            className="w-full p-2 border rounded mb-2"
-            value={searchQuery}
-            onChange={handleSearch}
-          />
-          
-          {/* Show filtered products when searching */}
-          {searchQuery && filteredProducts.length > 0 && (
-            <div className="border rounded shadow overflow-auto max-h-64">
-              {filteredProducts.map((product) => (
-                <div
-                  key={product.id}
-                  className="p-2 border-b hover:bg-gray-100 cursor-pointer"
-                  onClick={() => addProduct(product)} // Add product to the list
-                >
-                  {product.product_name}
-                </div>
-              ))}
-            </div>
-          )}
+        <select
+          value={brandFilter}
+          onChange={(e) => setBrandFilter(e.target.value)}
+          className="border p-2 rounded-md"
+        >
+          <option value="">Select Brand</option>
+          {[...new Set(reportData.map((item) => item.brand))].map((brand) => (
+            <option key={brand} value={brand}>
+              {brand}
+            </option>
+          ))}
+        </select>
 
-          {/* Show the product table only when products are added */}
-          {products.length > 0 && (
-            <table className="w-full border-collapse text-center mt-4">
-              <thead>
-                <tr className="bg-gray-100">
-                  <th>Product</th>
-                  <th>Quantity</th>
-                  <th>Purchase Price</th>
-                  <th>Subtotal</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {products.map((product, index) => (
-                  <tr key={index}>
-                    <td>{product.product_name}</td>
-                    <td>
-                      <input
-                        type="number"
-                        min="1"
-                        value={product.quantity}
-                        onChange={(e) => handleProductChange(index, 'quantity', e.target.value)}
-                        className="border rounded p-1 text-center"
-                      />
-                    </td>
-                    <td>{product.purchase_cost.toFixed(2)}</td>
-                    <td>{product.subtotal.toFixed(2)}</td>
-                    <td>
-                      <button
-                        type="button"
-                        className="text-red-500"
-                        onClick={() => removeProduct(index)}
-                      >
-                        Remove
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
+        <input
+          type="date"
+          value={startDate}
+          onChange={(e) => setStartDate(e.target.value)}
+          className="border p-2 rounded-md"
+        />
+        <input
+          type="date"
+          value={endDate}
+          onChange={(e) => setEndDate(e.target.value)}
+          className="border p-2 rounded-md"
+        />
 
-        {/* Discount and Tax */}
-        <div className="bg-white shadow-md md:p-6">
-          <h3 className="mb-2">Discount and Tax</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block">Discount Type:</label>
-              <select
-                className="w-full p-2 border rounded"
-                value={discountType}
-                onChange={(e) => setDiscountType(e.target.value)}
-              >
-                <option value="Percentage">Percentage</option>
-                <option value="Fixed">Fixed</option>
-              </select>
-            </div>
-            <div>
-              <label className="block">Discount Amount:</label>
-              <input
-                type="number"
-                className="w-full p-2 border rounded"
-                value={discountAmount}
-                onChange={(e) => setDiscountAmount(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="block">Order Tax:</label>
-              <input
-                type="number"
-                className="w-full p-2 border rounded"
-                value={orderTax}
-                onChange={(e) => setOrderTax(e.target.value)}
-              />
-            </div>
-          </div>
-        </div>
+        <button onClick={filterData} className="bg-blue-500 text-white px-4 py-2 rounded-md">
+          Filter
+        </button>
+        <button onClick={resetFilter} className="bg-gray-500 text-white px-4 py-2 rounded-md">
+          Reset
+        </button>
+      </div>
 
-        {/* Add Payment Section */}
-        <div className="bg-white shadow-md md:p-6">
-          <h3 className="mb-2">Add Payment</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block">Amount Paid:</label>
-              <input
-                type="number"
-                className="w-full p-2 border rounded"
-                value={amountPaid}
-                onChange={handleAmountPaidChange}
-              />
-            </div>
-            <div>
-              <label className="block">Change Return:</label>
-              <input
-                type="text"
-                className="w-full p-2 border rounded bg-gray-100"
-                value={`৳ ${changeReturn.toFixed(2)}`}
-                disabled
-              />
-            </div>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-            <div>
-              <label className="block">Paid on:</label>
-              <DatePicker
-                selected={paymentDate}
-                onChange={(date) => setPaymentDate(date)}
-                showTimeSelect
-                dateFormat="Pp"
-                className="w-full p-2 border rounded"
-              />
-            </div>
-            <div>
-              <label className="block">Payment Method:</label>
-              <select
-                className="w-full p-2 border rounded"
-                value={paymentMethod}
-                onChange={(e) => setPaymentMethod(e.target.value)}
-              >
-                <option value="Cash">Cash</option>
-                <option value="Bank">Bank Transfer</option>
-                <option value="Card">Card Payment</option>
-              </select>
-            </div>
-            <div>
-              <label className="block">Payment Account:</label>
-              <select
-                className="w-full p-2 border rounded"
-                value={paymentAccount.account_id}
-                onChange={(e) => {
-                  const selectedAccountId = e.target.value;
-                  const selectedAccount = accounts.find(
-                    (acc) => acc.account_id === selectedAccountId
-                  );
+      <div className="flex justify-end mb-4">
+        <button onClick={handlePrint} className="bg-green-500 text-white px-4 py-2 rounded-md">
+          Print
+        </button>
+      </div>
 
-                  if (selectedAccount) {
-                    setPaymentAccount({
-                      account_id: selectedAccount.account_id,
-                      name: selectedAccount.name,
-                    });
-                  } else {
-                    setPaymentAccount({ account_id: '', name: '' });
-                  }
-                }}
-              >
-                <option value="">Select the account</option>
-                {accounts.map((acc) => (
-                  <option key={acc.account_id} value={acc.account_id}>
-                    {acc.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block">Payment Note:</label>
-              <textarea
-                className="w-full p-2 border rounded"
-                value={paymentNote}
-                onChange={(e) => setPaymentNote(e.target.value)}
-                placeholder="Add payment notes here..."
-              />
-            </div>
-          </div>
-        </div>
+      <div className="overflow-auto">
+        <table id="table-to-print" className="min-w-full border-collapse border">
+          <thead>
+            <tr className="bg-emerald-500 text-white">
+              <th className="border p-2">SL</th>
+              <th className="border p-2">Category</th>
+              <th className="border p-2">Brand</th>
+              <th className="border p-2">Total Sales Qty</th>
+              <th className="border p-2">Total Purchase Qty</th>
+              <th className="border p-2">Total Sales Amount</th>
+              <th className="border p-2">Total Purchase Amount</th>
+              <th className="border p-2">Profit</th>
+            </tr>
+          </thead>
+          <tbody>
+            {currentData.map((item, index) => (
+              <tr key={index}>
+                <td className="border p-2">{item.id}</td>
+                <td className="border p-2">{item.category || "N/A"}</td>
+                <td className="border p-2">{item.brand || "N/A"}</td>
+                <td className="border p-2">{item.totalSalesQty}</td>
+                <td className="border p-2">{item.totalPurchaseQty}</td>
+                <td className="border p-2">{formatCurrency(item.totalSalesAmount)}</td>
+                <td className="border p-2">{formatCurrency(item.totalPurchaseAmount)}</td>
+                <td className="border p-2">{formatCurrency(item.profit)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
-        {/* Total Bill */}
-        <div className="mt-6">
-          <h3
-            className={`text-lg ${
-              paymentStatus === 'paid'
-                ? 'text-green-600'
-                : paymentStatus === 'partial'
-                ? 'text-yellow-600'
-                : 'text-red-600'
-            }`}
+      <div className="flex justify-center mt-4">
+        {Array.from({ length: totalPages }, (_, i) => (
+          <button
+            key={i}
+            onClick={() => handlePageChange(i + 1)}
+            className={`px-4 py-2 ${
+              currentPage === i + 1 ? "bg-blue-500 text-white" : "bg-gray-300"
+            } rounded-md`}
           >
-            Total Payable: ৳ {discountedTotal.toFixed(2)}
-          </h3>
-          <div className="flex gap-4 mt-4">
-            <button type="submit" className="bg-green-500 text-white p-2 rounded">
-              Save
-            </button>
-            <button type="button" className="bg-blue-500 text-white p-2 rounded">
-              Save & Print
-            </button>
-          </div>
-        </div>
-      </form>
+            {i + 1}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
