@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import React, { useState } from "react";
+import { toast } from "react-toastify";
 
 export default function SuppliersAdded() {
      const spanClass = " block h-0.5 bg-gradient-to-r from-pink-500 to-orange-500 scale-x-0 group-hover:scale-x-100 transition-transform origin-left duration-700"
@@ -10,32 +11,49 @@ export default function SuppliersAdded() {
     const [email, setEmail] = useState("");
     const [phone, setPhone] = useState("");
     const [address, setAddress] = useState("");
-    const [openingReceivable, setOpeningReceivable] = useState("");
-    const [openingPayable, setOpeningPayable] = useState("");
+    const [openingBalance, setOpeningBalance] = useState("");
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-
-    // Create an object with all form data
-    const formData = {
-      suppliersName,
-      email,
-      phone,
-      address,
-      openingReceivable,
-      openingPayable,
+    const handleSubmit = async (e) => {
+      e.preventDefault();
+    
+      const formData = {
+        suppliersName,
+        email,
+        phone,
+        address,
+        openingBalance,
+      };
+    
+      try {
+        const response = await fetch("/Suppliers/suppliers", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(formData),
+        });
+    
+        if (response.ok) {
+          const { supplier } = await response.json();
+          console.log("Supplier added successfully:", supplier);
+    
+          // Reset form fields
+          setSuppliersName("");
+          setEmail("");
+          setPhone("");
+          setAddress("");
+          setOpeningBalance("");
+    
+          toast.success("Supplier added successfully!");
+        } else {
+          const { error } = await response.json();
+          console.error("Failed to add supplier:", error);
+          toast.error("Failed to add supplier. Please try again.");
+        }
+      } catch (error) {
+        console.error("Error adding supplier:", error);
+        toast.error("An error occurred while adding the supplier.");
+      }
     };
-
-    // Handle the form data (send to API, log to console, etc.)
-    console.log("Form Data Submitted: ", formData);
-
-    // setSuppliersName("");
-    // setEmail("");
-    // setPhone("");
-    // setAddress("");
-    // setOpeningReceivable("");
-    // setOpeningPayable("");
-  };
+    
   return (
     <div className='bg-white dark:bg-[#141432] font-nunito text-sm md:h-screen'>
 
@@ -63,7 +81,7 @@ export default function SuppliersAdded() {
               Suppliers Name<span className="text-red-500">*</span>
             </label>
             <input
-              className="appearance-none bg-white block w-full  bg-gray-100 text-gray-700 border border-gray-300 rounded py-3 px-4 mb-3 leading-tight focus:outline-none focus:bg-white"
+              className="appearance-none bg-white block w-full   text-gray-700 border border-gray-300 rounded py-3 px-4 mb-3 leading-tight focus:outline-none focus:bg-white"
               id="Suppliers-name"
               type="text"
               placeholder="Enter Suppliers Name..."
@@ -77,7 +95,7 @@ export default function SuppliersAdded() {
               Email
             </label>
             <input
-              className="appearance-none bg-white block w-full bg-gray-100 text-gray-700 border border-gray-300 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white"
+              className="appearance-none bg-white block w-full  text-gray-700 border border-gray-300 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white"
               id="email"
               type="email"
               placeholder="Enter Suppliers Email..."
@@ -93,7 +111,7 @@ export default function SuppliersAdded() {
               Phone<span className="text-red-500">*</span>
             </label>
             <input
-              className="appearance-none bg-white  block w-full bg-gray-100 text-gray-700 border border-gray-300 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white"
+              className="appearance-none bg-white  block w-full  text-gray-700 border border-gray-300 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white"
               id="phone"
               type="text"
               placeholder="Enter Suppliers Phone..."
@@ -107,7 +125,7 @@ export default function SuppliersAdded() {
               Address
             </label>
             <input
-              className="appearance-none bg-white block w-full bg-gray-100 text-gray-700 border border-gray-300 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white"
+              className="appearance-none bg-white block w-full  text-gray-700 border border-gray-300 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white"
               id="address"
               type="text"
               placeholder="Write Suppliers Address..."
@@ -119,31 +137,19 @@ export default function SuppliersAdded() {
 
         <div className="flex flex-wrap -mx-3 mb-6">
           <div className="w-full md:w-1/2 px-3 mb-6 md:mb-0">
-            <label className="block  tracking-wide text-gray-700 dark:text-white text-xs  mb-2" htmlFor="opening-receivable">
-              Opening Receivable
+            <label className="block  tracking-wide text-gray-700 dark:text-white text-xs  mb-2" htmlFor="opening-Balance">
+              Opening Balance
             </label>
             <input
-              className="appearance-none bg-white block w-full bg-gray-100 text-gray-700 border border-gray-300 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white"
-              id="opening-receivable"
+              className="appearance-none bg-white block w-full  text-gray-700 border border-gray-300 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white"
+              id="opening-Balance"
               type="number"
-              placeholder="Enter Opening Receivable..."
-              value={openingReceivable}
-              onChange={(e) => setOpeningReceivable(e.target.value)}
+              placeholder="Enter Opening Balance..."
+              value={openingBalance}
+              onChange={(e) => setOpeningBalance(e.target.value)}
             />
           </div>
-          <div className="w-full md:w-1/2 px-3">
-            <label className="block  tracking-wide text-gray-700 dark:text-white text-xs  mb-2" htmlFor="opening-payable">
-              Opening Payable
-            </label>
-            <input
-              className="appearance-none bg-white block w-full bg-gray-100 text-gray-700 border border-gray-300 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white"
-              id="opening-payable"
-              type="number"
-              placeholder="Enter Opening Payable..."
-              value={openingPayable}
-              onChange={(e) => setOpeningPayable(e.target.value)}
-            />
-          </div>
+         
         </div>
 
         <div className="flex items-center justify-center">

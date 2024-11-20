@@ -138,29 +138,23 @@ export default function AddSale() {
 
     fetchProducts();
   }, []);
-
   useEffect(() => {
-    const fetchUsers = async () => {
-      
+    const fetchCustomers = async () => {
       try {
-        const response = await fetch('/Users/users');
+        const response = await fetch("/Customers/customer");
+        if (!response.ok) throw new Error("Failed to fetch customers");
 
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to fetch user data');
-        }
-
-        const data = await response.json();
-        setCustomers(data);
-      } catch (err) {
-        toast.error(err.message);
-      } finally {
-
-      }
+        const { customers } = await response.json();
+        console.log(customers);
+        setCustomers(customers);
+      } catch (error) {
+        console.error("Error fetching customers:", error);
+      } 
     };
 
-    fetchUsers();
+    fetchCustomers();
   }, []);
+
   useEffect(() => {
     async function fetchAccounts() {
       try {
@@ -271,11 +265,11 @@ export default function AddSale() {
             </div>
             <div>
               <label className="block font-semibold">Billing Address:</label>
-              <input type="text" value={selectedCustomer ||"Walk-In Customer"} disabled className="w-full p-2 border rounded bg-gray-100" />
+              <input type="text" value={selectedCustomer ||"Walk-In Customer"}  className="w-full p-2 border rounded bg-gray-100" />
             </div>
             <div>
               <label className="block font-semibold">Shipping Address:</label>
-              <input type="text" value={selectedCustomer ||"Walk-In Customer"} disabled className="w-full p-2 border rounded bg-gray-100" />
+              <input type="text" value={selectedCustomer ||"Walk-In Customer"}  className="w-full p-2 border rounded bg-gray-100" />
             </div>
           </div>
         </div>

@@ -79,26 +79,33 @@ export async function GET(request) {
         changeReturn,
         paymentDate,
         paymentMethod,
-        paymentAccount, // Should include account_id and name
+        paymentAccount,
         paymentNote,
         totalPayable,
       } = await request.json();
   
-      // Log received data for debugging
-      console.log("Received Purchase Data:", {
-        supplier,
-        products,
-        amountPaid,
-        paymentAccount,
-      });
-  
-      // Ensure required fields are present
       if (!supplier || !products || products.length === 0) {
         throw new Error("Missing required fields: supplier or products");
       }
   
       // Start a database transaction
       await query("BEGIN");
+  
+      // Fetch supplier data by name
+      const supplierResult = await query(
+        `SELECT id, opening_balance, paid, purchase_due
+         FROM suppliers
+         WHERE name = $1
+         LIMIT 1;`,
+        [supplier]
+      );
+  
+      if (supplierResult.rows.length === 0) {
+        throw new Error("Supplier not found");
+      }
+  
+      const supplierData = supplierResult.rows[0];
+      let { opening_balance, paid, purchase_due } = supplierData;
   
       // Insert the purchase record into the purchase table
       const purchaseResult = await query(
@@ -125,73 +132,86 @@ export async function GET(request) {
           changeReturn,
           paymentDate,
           paymentMethod,
-          paymentAccount?.name || null, // Store account name for reference
+          paymentAccount?.name || null,
           paymentNote,
           totalPayable,
         ]
       );
   
-      // Log purchase insertion result
       console.log("Purchase inserted:", purchaseResult.rows[0]);
   
-      // Update the stock for each product and add an expense for each product
+      // Update stock and add expenses for each product
       for (const product of products) {
         const { id, product_name, quantity, subtotal } = product;
   
         if (!id || !quantity) {
-          throw new Error(
-            "Product ID and quantity are required for stock update"
-          );
+          throw new Error("Product ID and quantity are required for stock update");
         }
   
         // Update stock for the product
-        const stockUpdateResult = await query(
+        await query(
           `UPDATE products
            SET opening_stock = opening_stock + $1
            WHERE id = $2;`,
           [quantity, id]
         );
   
-        // Log stock update result
-        console.log(`Product ID ${id} stock updated:`, stockUpdateResult.rowCount);
-  
         // Insert an expense for this product
-        const expenseResult = await query(
+        await query(
           `INSERT INTO expenses 
             (invoice_no, name, amount, created_at)
            VALUES ($1, $2, $3, NOW())
            RETURNING *;`,
           [
             invoiceNo,
-            product_name, // Use product name as the expense name
-            parseFloat(subtotal) || 0, // Use subtotal as the amount
+            product_name,
+            parseFloat(subtotal) || 0,
           ]
         );
-  
-        // Log expense insertion result
-        console.log("Expense recorded for product:", expenseResult.rows[0]);
       }
   
-      // Update balance in the selected payment account, if provided
+      // Calculate remaining due and adjust supplier balances
+      let remainingDue = totalPayable - amountPaid;
+  
+      if (remainingDue > 0) {
+        // If there is a remaining due, reduce the opening balance
+        opening_balance -= remainingDue;
+  
+        if (opening_balance < 0) {
+          // If the opening balance becomes negative, add the excess to purchase_due
+          purchase_due += Math.abs(opening_balance);
+          opening_balance = 0; // Retain any remaining balance as zero
+        }
+      } else {
+        // If overpayment occurs, increase opening_balance
+        opening_balance += Math.abs(remainingDue); // remainingDue will be negative
+      }
+  
+      paid += amountPaid;
+  
+      // Update supplier record
+      await query(
+        `UPDATE suppliers
+         SET opening_balance = $1,
+             paid = $2,
+             purchase_due = $3
+         WHERE id = $4;`,
+        [opening_balance, amountPaid, purchase_due, supplierData.id]
+      );
+  
+      // Update payment account balance
       if (paymentAccount?.account_id && amountPaid > 0) {
-        const accountUpdateResult = await query(
+        await query(
           `UPDATE bank_account 
            SET current_balance = current_balance - $1
            WHERE account_id = $2;`,
           [amountPaid, paymentAccount.account_id]
         );
-  
-        // Log account balance update result
-        console.log(
-          `Account ID ${paymentAccount.account_id} balance updated:`,
-          accountUpdateResult.rowCount
-        );
       }
   
-      // Commit transaction
+      // Commit the transaction
       await query("COMMIT");
   
-      // Return success response
       return new Response(
         JSON.stringify({
           message: "Purchase saved successfully",
@@ -213,5 +233,6 @@ export async function GET(request) {
       );
     }
   }
+  
   
   

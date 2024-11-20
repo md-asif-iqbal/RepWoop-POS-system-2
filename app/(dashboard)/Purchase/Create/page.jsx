@@ -133,20 +133,23 @@ export default function AddPurchase() {
     fetchProducts();
   }, []);
 
-  useEffect(() => {
-    const fetchSuppliers = async () => {
-      try {
-        const response = await fetch('/Users/users');
-        if (!response.ok) throw new Error('Failed to fetch suppliers');
-        const data = await response.json();
-        setSuppliers(data);
-      } catch (error) {
-        toast.error(error.message);
-      }
-    };
+ // Fetch suppliers from the backend
+ useEffect(() => {
+  const fetchSuppliers = async () => {
+    try {
+      const response = await fetch('/Suppliers/suppliers');
+      if (!response.ok) throw new Error('Failed to fetch suppliers');
+      const { suppliers } = await response.json();
+      console.log(suppliers);
+      setSuppliers(suppliers);
+    } catch (error) {
+      console.error('Error fetching suppliers:', error);
+      toast.error('Error fetching suppliers');
+    }
+  };
 
-    fetchSuppliers();
-  }, []);
+  fetchSuppliers();
+}, []);
 
   useEffect(() => {
     const fetchAccounts = async () => {
