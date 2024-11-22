@@ -1,42 +1,38 @@
 import { query } from '../../../../../lib/db' // Assuming you have a `db` utility to interact with the database.
 
+
+
+
 export async function POST(req) {
   try {
-    const {
-      joiningDate,
-      name,
-      email,
-      phone,
-      salary,
-      overtimeRate,
-      address,
-    } = await req.json();
+      const body = await req.json(); // Parse the incoming JSON
+      const { joiningDate, name, email, phone, salary, overtimeRate, role, address } = body;
 
-    // Insert data into the Employee table
-    const result = await query(
-      `INSERT INTO Employee (joining_date, name, email, phone, address) 
-       VALUES ($1, $2, $3, $4, $5) RETURNING employee_id;`,
-      [joiningDate, name, email, phone, address]
-    );
+      // Validation (optional, but recommended)
+      if (!joiningDate || !name || !phone || !salary || !overtimeRate || !role) {
+          return new Response(
+              JSON.stringify({ success: false, error: "Missing required fields" }),
+              { status: 400 }
+          );
+      }
 
-    const employeeId = result.rows[0].employee_id;
+      // SQL query to insert the employee data
+      const sql = `
+          INSERT INTO Employee (joining_date, name, email, phone, salary, overtime_rate, role, address)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          RETURNING *;
+      `;
+      const values = [joiningDate, name, email, phone, salary, overtimeRate, role, address];
 
-    // Insert data into the Salary table
-    await query(
-      `INSERT INTO Salary (employee_id, base_salary, overtime_rate) 
-       VALUES ($1, $2, $3);`,
-      [employeeId, salary, overtimeRate]
-    );
+      // Execute the query
+      const result = await query(sql, values);
 
-    return new Response(
-      JSON.stringify({ message: "Employee and salary data saved successfully" }),
-      { status: 201 }
-    );
+      return new Response(JSON.stringify({ success: true, data: result.rows[0] }), { status: 201 });
   } catch (error) {
-    console.error("Error saving data:", error);
-    return new Response(
-      JSON.stringify({ error: "Failed to save data" }),
-      { status: 500 }
-    );
+      console.error("Error inserting employee:", error);
+      return new Response(
+          JSON.stringify({ success: false, error: "Database error" }),
+          { status: 500 }
+      );
   }
 }

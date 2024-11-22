@@ -16,6 +16,7 @@ export default function NewEmployeeForm () {
         phone: "",
         salary: "",
         overtimeRate: "0", // Default to 0 as per the form instruction
+        role:"",
         address: ""
       });
     
@@ -28,28 +29,43 @@ export default function NewEmployeeForm () {
       };
     
       
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    try {
-      const response = await fetch("/Employee-and-Salary/New-Employee/new", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to save data");
-      }
-
-      const data = await response.json();
-      console.log("Success:", data.message);
-      toast.success("Employee data saved successfully!");
-    } catch (error) {
-      console.error("Error:", error);
-      toast.error("Failed to save employee data.");
-    }
-  };
+      const handleSubmit = async (e) => {
+        e.preventDefault();
+    
+        try {
+            const response = await fetch('/api/employees', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(formData),
+            });
+    
+            const result = await response.json();
+    
+            if (response.ok) {
+                console.log('Employee added:', result.data);
+                toast.success('Employee added successfully!');
+                setFormData({
+                    joiningDate: "",
+                    name: "",
+                    email: "",
+                    phone: "",
+                    salary: "",
+                    overtimeRate: "0",
+                    role: "",
+                    address: "",
+                });
+            } else {
+                console.error('Error adding employee:', result.error);
+                toast.error('Failed to add employee: ' + result.error);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            toast.error('An unexpected error occurred.');
+        }
+    };
+    
 
   return (
     <div className='bg-white dark:bg-[#141432] font-nunito text-sm'>
@@ -163,7 +179,7 @@ export default function NewEmployeeForm () {
               Phone<span className="text-red-500">*</span>
             </label>
             <input
-              className="appearance-none bg-white block w-full bg-gray-100 text-gray-700 border border-gray-300 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white"
+              className="appearance-none bg-white block w-full text-gray-700 border border-gray-300 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white"
               id="phone"
               name="phone"
               type="text"
@@ -209,11 +225,23 @@ export default function NewEmployeeForm () {
               required
             />
           </div>
-        </div>
-        
-
-        {/* Address */}
-        <div className="w-full px-3 mb-6">
+          <div className="w-full md:w-1/2 px-3">
+            <label className="block  tracking-wide text-gray-700 dark:text-white text-xs  mb-2" htmlFor="overtimeRate">
+              Role<span className="text-red-500">*</span>
+            </label>
+            <input
+              className="appearance-none bg-white block w-full  text-gray-700 border border-gray-300 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white"
+              id="role"
+              name="role"
+              type="text"
+              placeholder="Must be written as 0 if not applicable"
+              value={formData.role}
+              onChange={handleInputChange}
+              required
+            />
+          </div>
+                  {/* Address */}
+        <div className="w-full md:w-1/2 px-3 mb-6">
           <label className="block  tracking-wide text-gray-700 dark:text-white text-xs  mb-2" htmlFor="address">
             Address
           </label>
@@ -226,6 +254,10 @@ export default function NewEmployeeForm () {
             onChange={handleInputChange}
           />
         </div>
+        </div>
+        
+
+
 
         {/* Save Button */}
         <div className="flex items-center justify-center">

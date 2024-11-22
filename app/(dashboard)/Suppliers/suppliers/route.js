@@ -1,43 +1,45 @@
 import { query } from '../../../../lib/db'; // Adjust the path as necessary
 
 export async function GET() {
-    try {
+  try {
       // Query the suppliers table to fetch all supplier details
       const result = await query(`
-        SELECT 
-          id,
-          name,
-          email,
-          phone,
-          address,
-          opening_balance AS balance,
-          paid,
-          purchase_due
-        FROM suppliers
-        ORDER BY name ASC;
+          SELECT 
+              id,
+              name,
+              email,
+              phone,
+              address,
+              TO_CHAR(created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at, -- Format the date
+              opening_balance AS balance,
+              paid,
+              purchase_due
+          FROM suppliers
+          ORDER BY name ASC;
       `);
-  
+
       // Format and send the response
       return new Response(
-        JSON.stringify({ suppliers: result.rows }),
-        {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        }
+          JSON.stringify({ suppliers: result.rows }),
+          {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' },
+          }
       );
-    } catch (error) {
+  } catch (error) {
       console.error('Error fetching suppliers:', error.message);
-  
+
       // Handle errors
       return new Response(
-        JSON.stringify({ error: 'Failed to fetch suppliers' }),
-        {
-          status: 500,
-          headers: { 'Content-Type': 'application/json' },
-        }
+          JSON.stringify({ error: 'Failed to fetch suppliers' }),
+          {
+              status: 500,
+              headers: { 'Content-Type': 'application/json' },
+          }
       );
-    }
   }
+}
+
 
 
 

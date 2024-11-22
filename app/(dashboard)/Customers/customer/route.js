@@ -3,28 +3,36 @@ import { query } from "../../../../lib/db";
 
 
 export async function GET() {
-    try {
+  try {
       const result = await query(`
-        SELECT 
-          id, name, email, phone, address, opening_balance AS balance, 
-          paid, sale_due AS saleDue, 
-          (opening_balance - paid + sale_due) AS totalDue 
-        FROM customers 
-        ORDER BY created_at DESC;
+          SELECT 
+              id, 
+              name, 
+              email, 
+              phone, 
+              address, 
+              opening_balance AS balance, 
+              paid, 
+              sale_due AS saleDue, 
+              (opening_balance - paid + sale_due) AS totalDue,
+              TO_CHAR(created_at, 'YYYY-MM-DD HH24:MI:SS') AS createdAt -- Include and format created_at
+          FROM customers
+          ORDER BY created_at DESC;
       `);
-  
+
       return new Response(
-        JSON.stringify({ customers: result.rows }),
-        { status: 200, headers: { "Content-Type": "application/json" } }
+          JSON.stringify({ customers: result.rows }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
       );
-    } catch (error) {
+  } catch (error) {
       console.error("Error fetching customers:", error);
       return new Response(
-        JSON.stringify({ error: "Failed to fetch customers", details: error.message }),
-        { status: 500, headers: { "Content-Type": "application/json" } }
+          JSON.stringify({ error: "Failed to fetch customers", details: error.message }),
+          { status: 500, headers: { "Content-Type": "application/json" } }
       );
-    }
   }
+}
+
 
 export async function POST(request) {
   try {

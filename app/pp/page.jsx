@@ -1,310 +1,415 @@
 "use client";
-import React, { useEffect, useState } from "react";
-import { Bar } from "react-chartjs-2";
-import { Chart as ChartJS, BarElement, CategoryScale, LinearScale, Title, Tooltip, Legend } from "chart.js";
-import Image from "next/image";
-import { TbEdit, TbShoppingCartDollar } from "react-icons/tb";
-import { RiDeleteBin5Line } from "react-icons/ri";
-import { BiSolidShoppingBags } from "react-icons/bi";
-import { BsCashCoin } from "react-icons/bs";
-import { ArrowDownFromLine, ArrowUpFromLine, BadgeDollarSign } from "lucide-react";
-// Register necessary Chart.js components
-ChartJS.register(BarElement, CategoryScale, LinearScale, Title, Tooltip, Legend);
 
-export default function Home() {
-  const [darkMode, setDarkMode] = useState(false);
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import React, { useState, useEffect } from "react";
+import { CSVLink } from "react-csv";
+import jsPDF from "jspdf";
+import "jspdf-autotable";
+import * as XLSX from "xlsx";
+const paginate = (data, page, entriesPerPage) => {
+  const startIndex = page * entriesPerPage;
+  return data.slice(startIndex, startIndex + entriesPerPage);
+};
 
-  useEffect(() => {
-    // Check if dark mode is enabled globally (e.g., stored in localStorage or window)
-    const isDarkMode = window.localStorage.getItem("theme") === "dark";
-    setDarkMode(isDarkMode);
-    console.log(isDarkMode);
+export default function SummaryReport() {
+  const pathname = usePathname();
+  const spanClass =
+    " block h-0.5 bg-gradient-to-r from-pink-500 to-orange-500 scale-x-0 group-hover:scale-x-100 transition-transform origin-left duration-700";
 
-    // Apply dark mode class based on global theme
-    if (isDarkMode) {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-  }, []);
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [filtered, setFiltered] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  // Data for the Bar Chart
-  const data = {
-    labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep"],
-    datasets: [
-      {
-        label: "Sales",
-        data: [100, 200, 150, 220, 180, 250, 270, 240, 300,400],
-        backgroundColor: "#28C76F", // Green for sales
-        hoverbackgroundColor: "#65FA9E", // hover Green for sales
-        borderColor: "#65FA9E",
-        borderWidth: 1,
-        borderRadius: 20,
-        barThickness: 20,
-      },
-      {
-        label: "Purchase",
-        data: [-150, -180, -120, -170, -130, -210, -190, -160, -200,-300],
-        backgroundColor: "#FF4D4D", // Red for purchases
-        hoverbackgroundColor: "#E4E2E2",
-        borderColor: "#FF8585",
-        borderWidth: 1,
-        borderRadius: 20,
-        barThickness: 20,
-      },
-    ],
-  };
+  const [sales, setSales] = useState([]);
+  const [expenses, setExpenses] = useState([]);
+  const [suppliers, setSuppliers] = useState([]);
+  const [customers, setCustomers] = useState([]);
 
-  // Chart options for a stacked bar chart
-  const options = {
-    scales: {
-      x: {
-      
-        stacked: true, // Stack the x-axis
-        grid: {
-           // Light grid lines for x-axis
-        },
-        ticks: {
-           // White tick labels for x-axis
-        },
-      },
-      y: {
-        stacked: true, // Stack the y-axis
-        beginAtZero: true,
-        grid: {
-           // Light grid lines
-        },
-        ticks: {
-           // White tick labels for y-axis
-        },
-      },
-    },
+  const [entriesPerPage, setEntriesPerPage] = useState(10);
+  const [currentPageSales, setCurrentPageSales] = useState(0);
+  const [currentPageExpenses, setCurrentPageExpenses] = useState(0);
+  const [currentPageSuppliers, setCurrentPageSuppliers] = useState(0);
+  const [currentPageCustomers, setCurrentPageCustomers] = useState(0);
 
-    responsive: true,
-  };
-
-  // Get the current date
-  const date = new Date();
-  const day = date.getDate(); // Returns the day of the month
-  const month = date.toLocaleString("default", { month: "long" }); // Returns full month name
-  const year = date.getFullYear(); // Returns the year
-
-  const [products, setProducts] = useState([]);
-  const [error, setError] = useState(null);
+  const [salesSearch, setSalesSearch] = useState("");
+  const [expensesSearch, setExpensesSearch] = useState("");
+  const [suppliersSearch, setSuppliersSearch] = useState("");
+  const [customersSearch, setCustomersSearch] = useState("");
 
   useEffect(() => {
-    async function fetchProducts() {
+    const fetchData = async () => {
       try {
-        const res = await fetch('/home/product', {
-          method: 'GET', // Ensuring that you are using a GET request
-        });
-        if (!res.ok) {
-          throw new Error('Failed to fetch');
+        const [salesRes, expensesRes, suppliersRes, customersRes] =
+          await Promise.all([
+            fetch("/Sales/Create/sales"),
+            fetch("/Expenses/expense"),
+            fetch("/Suppliers/suppliers"),
+            fetch("/Customers/customer"),
+          ]);
+
+        if (
+          !salesRes.ok ||
+          !expensesRes.ok ||
+          !suppliersRes.ok ||
+          !customersRes.ok
+        ) {
+          throw new Error("Failed to fetch data");
         }
-        const data = await res.json();
-        setProducts(data);
+
+        const salesData = await salesRes.json();
+        const expensesData = (await expensesRes.json())?.expenses || [];
+        const suppliersData = (await suppliersRes.json())?.suppliers || [];
+        const customersData = (await customersRes.json())?.customers || [];
+
+        setSales(salesData);
+        setExpenses(expensesData);
+        setSuppliers(suppliersData);
+        setCustomers(customersData);
       } catch (error) {
-        console.error('Error fetching products:', error);
+        console.error(error);
+        alert("Failed to fetch data");
+      } finally {
+        setLoading(false);
       }
-    }
-  
-    fetchProducts();
+    };
+
+    fetchData();
   }, []);
 
-  if (error) {
-    return <div>{error}</div>; // Display error if fetching fails
+
+
+  const calculateTotalAmount = (data, key) => {
+    return data.reduce((acc, item) => {
+      const numericValue = parseFloat(item[key]?.replace(/[^0-9.]/g, "") || 0);
+      return acc + numericValue;
+    }, 0);
+  };
+
+  const filterByDate = (data, dateKey) => {
+    if (!startDate || !endDate || !filtered) return data;
+    return data.filter(
+      (item) =>
+        new Date(item[dateKey]) >= new Date(startDate) &&
+        new Date(item[dateKey]) <= new Date(endDate)
+    );
+  };
+
+  const handleFilter = () => {
+    setFiltered(true);
+  };
+
+  const resetFilter = () => {
+    setStartDate("");
+    setEndDate("");
+    setFiltered(false);
+  };
+
+  const exportToExcel = (data, filename) => {
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Sheet1");
+    XLSX.writeFile(workbook, `${filename}.xlsx`);
+  };
+
+  const exportPDF = (data, title) => {
+    const doc = new jsPDF();
+    doc.text(title, 20, 10);
+    doc.autoTable({
+      head: [["#", "Name", "Details", "Amount"]],
+      body: data?.map((item, index) => [
+        index + 1,
+        item.product_name || item.name || item.supplier || item.customer,
+        item.product_details || item.category || item.payment_date || "",
+        item.total || item.amount || "",
+      ]),
+    });
+    doc.save(`${title}.pdf`);
+  };
+
+  if (loading) {
+    return <div>Loading...</div>;
   }
-// console.log(products);
+
   return (
-    <div className=" dark:text-white lg:p-8 font-nunito text-sm">
-      <main className="ml-1/5 flex-grow  md:mt-[5%] mt-[20%]">
-        {/* Header */}
-        <div className="flex justify-between items-center p-4">
-          <h2 className=" dark:text-white text-lg font-medium">Welcome Back!</h2>
-          <p className=" dark:text-white ">{`${day} ${month} ${year}`}</p>
+    <div className="bg-white dark:bg-[#141432] font-nunito text-sm dark:text-white">
+      <div className="p-0 mt-[25%] sm:mt-[5%] w-full">
+        <div className="mb-4 shadow-sm rounded-sm">
+          <h1 className="text-lg text-gray-500 dark:text-white mx-5">
+            Summary Report
+          </h1>
+          <div className="sm:md:flex items-start justify-start mx-5 py-5 gap-10">
+            <Link
+              href="/Today-Report"
+              className={`${
+                pathname === "/Today-Report"
+                  ? " group text-orange-500 hover:text-orange-500"
+                  : "group text-gray-500 dark:text-white hover:text-orange-500"
+              }`}
+            >
+              Today Report
+              <span className={spanClass}></span>
+            </Link>
+            <Link
+              href="/Current-Month-Report"
+              className={`${
+                pathname === "/Current-Month-Report"
+                  ? " group text-orange-500 hover:text-orange-500"
+                  : "group text-gray-500 dark:text-white hover:text-orange-500"
+              }`}
+            >
+              Current Month Report
+              <span className={spanClass}></span>
+            </Link>
+            <Link
+              href="/Summary-Report"
+              className={`${
+                pathname === "/Summary-Report"
+                  ? " group text-orange-500 hover:text-orange-500"
+                  : "group text-gray-500 dark:text-white hover:text-orange-500"
+              }`}
+            >
+              Summary Report
+              <span className={spanClass}></span>
+            </Link>
+          </div>
         </div>
 
-        <div className="lg:mt-5  bg-white dark:bg-[#141432] text-gray-900 dark:text-gray-100 p-4">
-        <h2 className=" dark:text-white text-md  mb-4">Total Summary</h2>
-          {/* Dashboard cards and charts */}
+        {/* Date Filters */}
+        <div className="container mx-auto px-4 py-8">
+          <div className="md:flex justify-between mb-8 w-full gap-5">
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="border p-2 w-full mb-2 md:mb-0 bg-white"
+            />
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="border p-2 w-full mb-2 md:mb-0 bg-white"
+            />
+            <button
+              onClick={handleFilter}
+              className="bg-blue-500 text-white p-2 w-full md:w-1/4 mb-2 md:mb-0"
+            >
+              Filter
+            </button>
+            <button
+              onClick={resetFilter}
+              className="bg-red-500 text-white p-2 w-full md:w-1/4 mb-2 md:mb-0"
+            >
+              Reset
+            </button>
+          </div>
+
+          {/* Summary Section */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {/* Cards */}
-            <div className=" p-4 rounded shadow-sm flex justify-start gap-5 items-center">
-            <span className="p-3 bg-rose-300 rounded-full bg-opacity-30">
-              <BiSolidShoppingBags size={28} className="text-[#FF9F43]"/>
-              
-            </span>
-              <div><p>$307144</p>
-              <p>Total Purchase Due</p></div>
+            <div className="bg-green-500 text-white p-4 rounded shadow-md">
+              <h3 className="text-sm">SALE AMOUNT</h3>
+              <p className="dark:text-white text-md">
+                TK{" "}
+                {calculateTotalAmount(filterByDate(sales, "sale_date"), "total")}
+              </p>
             </div>
-            <div className=" p-4 rounded shadow-sm flex justify-start gap-5 items-center">
-            <span className="p-3 bg-green-300 rounded-full bg-opacity-30">
-              <BadgeDollarSign strokeWidth={2} className="text-green-500 "/>
-            </span>
-              <div>
-                <p>$4385</p>
-                <p>Total Sales Due</p>
-              </div>
+            <div className="bg-red-500 text-white p-4 rounded shadow-md">
+              <h3 className="text-sm">EXPENSE</h3>
+              <p className="dark:text-white text-md">
+                TK{" "}
+                {calculateTotalAmount(
+                  filterByDate(expenses, "created_at"),
+                  "amount"
+                )}
+              </p>
             </div>
-            <div className=" p-4 rounded shadow-sm flex justify-start gap-5 items-center">
-            <span className="p-3 bg-cyan-300 rounded-full bg-opacity-30">
-            
-              <ArrowDownFromLine strokeWidth={2} className="text-cyan-500"/>
-            </span>
-              <div>
-              <p>$385656.5</p>
-              <p>Total Sale Amount</p>
-              </div>
+            <div className="bg-gray-700 text-white p-4 rounded shadow-md">
+              <h3 className="text-sm">SUPPLIER PAYMENTS</h3>
+              <p className="dark:text-white text-md">
+                TK{" "}
+                {calculateTotalAmount(
+                  filterByDate(suppliers, "created_at"),
+                  "balance"
+                )}
+              </p>
             </div>
-            <div className=" p-4 rounded shadow-sm flex justify-start gap-5 items-center">
-            <span className="p-3 bg-rose-300 rounded-full bg-opacity-30">
-              <ArrowUpFromLine strokeWidth={2} className="text-rose-500"/>
-            </span>
-              <div>
-              <p>$40000</p>
-              <p>Total Expense Amount</p>
-              </div>
+            <div className="bg-yellow-500 text-white p-4 rounded shadow-md">
+              <h3 className="text-sm">CUSTOMER PAYMENTS</h3>
+              <p className="dark:text-white text-md">
+                TK{" "}
+                {calculateTotalAmount(
+                  filterByDate(customers, "createdat"),
+                  "balance"
+                )}
+              </p>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-8 text-white">
-            {/* Additional Stats */}
-            <div className="bg-[#FF9F43] p-4 rounded shadow-sm text-center">
-              <p>100</p>
-              <p>Customers</p>
-            </div>
-            <div className="bg-sky-400 p-4 rounded shadow-sm text-center">
-              <p>110</p>
-              <p>Suppliers</p>
-            </div>
-            <div className="bg-indigo-400 p-4 rounded shadow-sm text-center">
-              <p>150</p>
-              <p>Purchase Invoice</p>
-            </div>
-            <div className="bg-[#28C76F] p-4 rounded shadow-sm text-center">
-              <p>170</p>
-              <p>Sales Invoice</p>
-            </div>
+          {/* Tables */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
+            <Table
+              title="Sales"
+              data={filterByDate(sales.flatMap((sale) =>
+                sale.products.map((product) => ({
+                  ...sale,
+                  product_name: product.product_name,
+                  product_details: product.product_details,
+                  product_sale_price: product.sale_price,
+                }))
+              ), "sale_date")}
+              fields={{
+                name: "product_name",
+                details: "product_details",
+                amount: "product_sale_price",
+              }}
+              search={salesSearch}
+              setSearch={setSalesSearch}
+              currentPage={currentPageSales}
+              setCurrentPage={setCurrentPageSales}
+              entriesPerPage={entriesPerPage}
+            />
+            <Table
+              title="Expenses"
+              data={filterByDate(expenses, "created_at")}
+              fields={{ name: "name", details: "invoice_no", amount: "amount" }}
+              search={expensesSearch}
+              setSearch={setExpensesSearch}
+              currentPage={currentPageExpenses}
+              setCurrentPage={setCurrentPageExpenses}
+              entriesPerPage={entriesPerPage}
+            />
+            <Table
+              title="Payments to Suppliers"
+              data={filterByDate(suppliers, "created_at")}
+              fields={{ name: "name", details: "email", amount: "balance" }}
+              search={suppliersSearch}
+              setSearch={setSuppliersSearch}
+              currentPage={currentPageSuppliers}
+              setCurrentPage={setCurrentPageSuppliers}
+              entriesPerPage={entriesPerPage}
+            />
+            <Table
+              title="Payments from Customers"
+              data={filterByDate(customers, "createdat")}
+              fields={{ name: "name", details: "email", amount: "balance" }}
+              search={customersSearch}
+              setSearch={setCustomersSearch}
+              currentPage={currentPageCustomers}
+              setCurrentPage={setCurrentPageCustomers}
+              entriesPerPage={entriesPerPage}
+            />
           </div>
-          <div className="p-0 mb-5 mt-5">
-      {/* Today Summary */}
-      <h2 className=" dark:text-white text-md  mb-4">Today Summary</h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        <div className="bg-blue-600 text-white p-4 rounded shadow-sm">
-          <h3 className=" ">TODAY SOLD</h3>
-          <p className=" dark:text-white ">Tk 20,000</p>
-        </div>
-        <div className="bg-violet-500 text-white p-4 rounded shadow-sm">
-          <h3 className=" ">TODAY SOLD - PURCHASE COST</h3>
-          <p className=" dark:text-white ">Tk 20,000</p>
-        </div>
-        <div className="bg-red-500 text-white p-4 rounded shadow-sm">
-          <h3 className=" ">TODAY EXPENSE</h3>
-          <p className=" dark:text-white ">Tk 20,000</p>
-        </div>
-        <div className="bg-green-600 text-white p-4 rounded shadow-sm">
-          <h3 className=" ">TODAY SELL PROFIT</h3>
-          <p className=" dark:text-white ">Tk 30,000</p>
-        </div>
-      </div>
-   
-      {/* Current Month Summary */}
-      <h2 className=" dark:text-white text-md  mb-4">Current Month Summary</h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-emerald-500 text-white p-4 rounded shadow-sm">
-          <h3 className=" ">SOLD IN SEP 2024</h3>
-          <p className=" dark:text-white ">Tk 20,003,886,022</p>
-        </div>
-        <div className="bg-purple-500 text-white p-4 rounded shadow-sm">
-          <h3 className=" ">PURCHASED - IN SEP 2024</h3>
-          <p className=" dark:text-white ">Tk 20,0033,884,105</p>
-        </div>
-        <div className="bg-orange-500 text-white p-4 rounded shadow-sm">
-          <h3 className=" ">EXPENSE IN SEP 2024</h3>
-          <p className=" dark:text-white ">Tk 20,00200</p>
-        </div>
-        <div className="bg-cyan-400 text-white p-4 rounded shadow-sm">
-          <h3 className=" ">RETURNED IN SEP 2024</h3>
-          <p className=" dark:text-white ">Tk 20,000</p>
-        </div>
-        <div className="bg-purple-600 text-white p-4 rounded shadow-sm">
-          <h3 className=" ">PROFIT SEP 2024</h3>
-          <p className=" dark:text-white ">123,122</p>
         </div>
       </div>
     </div>
+  );
+}
 
-          <div className="grid min-w-full grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Chart Area */}
-            <div className="mt-8   shadow-sm dark:bg-[#202047]">
-              <h3 className="  mb-4">Purchase & Sales</h3>
-              <div className="flex justify-between mb-4">
-                <div className="text-green-500">Sales</div>
-                <div className="text-red-500">Purchase</div>
-                <select className="bg-white dark:bg-[#303063] rounded py-2 text-black dark:text-white">
-                  <option>2023</option>
-                  <option>2022</option>
-                  <option>2021</option>
-                </select>
-              </div>
+// Table Component
+function Table({
+  title,
+  data,
+  fields,
+  search,
+  setSearch,
+  currentPage,
+  setCurrentPage,
+  entriesPerPage,
+}) {
+  const filteredData = data.filter((item) =>
+    [item[fields.name], item[fields.details], item[fields.amount]]
+      .join(" ")
+      .toLowerCase()
+      .includes(search.toLowerCase())
+  );
 
-              {/* Stacked Bar Chart */}
-              <Bar data={data} options={options} />
-            </div>
+  const paginatedData = paginate(filteredData, currentPage, entriesPerPage);
 
-          </div>
+  const exportToExcel = () => {
+    const worksheet = XLSX.utils.json_to_sheet(filteredData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Sheet1");
+    XLSX.writeFile(workbook, `${title}.xlsx`);
+  };
+
+  const exportPDF = () => {
+    const doc = new jsPDF();
+    doc.text(title, 20, 10);
+    doc.autoTable({
+      head: [["#", "Name", "Details", "Amount"]],
+      body: paginatedData.map((item, index) => [
+        index + 1,
+        item[fields.name],
+        item[fields.details],
+        item[fields.amount],
+      ]),
+    });
+    doc.save(`${title}.pdf`);
+  };
+
+  return (
+    <div className="border rounded shadow p-4 bg-white dark:bg-gray-800">
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-lg font-bold">{title}</h2>
+        <div>
+          <button
+            onClick={exportToExcel}
+            className="bg-green-500 text-white px-2 py-1 rounded mr-2"
+          >
+            Excel
+          </button>
+          <button
+            onClick={exportPDF}
+            className="bg-blue-500 text-white px-2 py-1 rounded"
+          >
+            PDF
+          </button>
         </div>
-        <div className="p-4">
-      <h2 className=" dark:text-white text-md  mb-4 ">Expired Products</h2>
-      <div className="overflow-x-auto w-full">
-  <table className="min-w-full table-auto dark:text-white border text-center ">
-    <thead>
-      <tr className="bg-emerald-500 text-white text-sm leading-normal">
-        <th className="py-2 border">Product</th>
-        <th className="py-2 border">SKU</th>
-        <th className="py-2 border">Manufactured Date</th>
-        <th className="py-2 border">Expired Date</th>
-        <th className="py-2 border">Action</th>
-      </tr>
-    </thead>
-    <tbody className="text-sm font-light">
-      {products?.map((product) => (
-        <tr key={product.id} className="border-b border-gray-200">
-          <td className="py-2 md:flex justify-items-center items-center ml-2 whitespace-nowrap">
-           
-          {product.image && (
-                  <Image 
-                  width={200} height={300}
-                  src={`data:image/jpeg;base64,${product.image}`}
-                  alt={product.product_name}
-  
-                    className="w-8 h-10 object-cover rounded mr-2"
-                  />   )}
-                  
-            <span className="font-medium">{product.product_name}</span>
-          </td>
-          <td className="py-2 border">{product.product_code}</td>
-          <td className="py-2 border">{new Date(product.created_at).toISOString().split('T')[0]}</td>
-          <td className="py-2 border">{new Date(product.created_at).toISOString().split('T')[0]}</td>
-
-          
-          <td className="py-2 border">
-            <div className="md:flex item-center justify-center gap-5">
-              <button className="p-1 mb-4 md:mb-0 border-2 transform text-blue-600 hover:text-blue-500 hover:scale-110">
-                <TbEdit size={16} />
-              </button>
-              <button className="p-1 transform text-red-600 hover:text-red-500 hover:scale-110 border-2">
-                <RiDeleteBin5Line size={16} />
-              </button>
-            </div>
-          </td>
-        </tr>
-      ))}
-    </tbody>
-  </table>
-</div>
-    </div>
-      </main>
+      </div>
+      <input
+        type="text"
+        placeholder="Search..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        className="w-full border px-3 py-2 mb-4"
+      />
+      <table className="w-full border-collapse text-left">
+        <thead>
+          <tr>
+            <th className="border px-4 py-2">#</th>
+            <th className="border px-4 py-2">Name</th>
+            <th className="border px-4 py-2">Details</th>
+            <th className="border px-4 py-2">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          {paginatedData.map((item, index) => (
+            <tr key={index}>
+              <td className="border px-4 py-2">{index + 1}</td>
+              <td className="border px-4 py-2">{item[fields.name]}</td>
+              <td className="border px-4 py-2">{item[fields.details]}</td>
+              <td className="border px-4 py-2">{item[fields.amount]}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {/* Pagination */}
+      <div className="flex justify-center items-center mt-4">
+        <button
+          onClick={() => setCurrentPage(Math.max(0, currentPage - 1))}
+          className="bg-gray-300 px-4 py-2 rounded-l"
+        >
+          Previous
+        </button>
+        <span className="px-4 py-2">Page {currentPage + 1}</span>
+        <button
+          onClick={() => setCurrentPage(currentPage + 1)}
+          className="bg-gray-300 px-4 py-2 rounded-r"
+        >
+          Next
+        </button>
+      </div>
     </div>
   );
 }
