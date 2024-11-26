@@ -710,7 +710,7 @@ export default function Sidebar() {
                                     </div>
                             </Link>
                         </li>
-                        <li>
+                        {/* <li>
                         
                             <Link href="/Customer-Ledger" className=
                                 {`${
@@ -742,7 +742,7 @@ export default function Sidebar() {
                                     <span className={spanClass}></span>
                                 </div>
                             </Link>
-                        </li>
+                        </li> */}
                     </ul>
                 </div>
                  {/* Settings & Customize */}

@@ -111,8 +111,8 @@ export default function CurrentMonthReport() {
   }
 
   return (
-    <div className="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 p-6">
-      <h1 className="text-2xl font-bold mb-6">Current Month Report</h1>
+    <div className="bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-100 text-sm mt-[25%] md:mt-[5%] p-6">
+      <h1 className="text-xl font-bold mb-6">Current Month Report</h1>
       <div className=' sm:md:flex items-start justify-start mx-5 py-5 gap-10 '>
         <Link href="/Today-Report" className= {`${
                           pathname === '/Today-Report' 

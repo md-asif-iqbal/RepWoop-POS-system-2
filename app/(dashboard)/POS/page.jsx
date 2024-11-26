@@ -1,34 +1,24 @@
 "use client"
 import Loader from '@/app/Loaders/page';
 import Image from 'next/image';
+import Link from 'next/link';
 import React, { useEffect, useState } from 'react'
+import { toast } from 'react-toastify';
 
 export default function POSManage() {
    
-    // const products = [
-    //   { id: 1, name: "Air Conditioner", price: 96000, stock: 96, category: "House" },
-    //   { id: 2, name: "Blazer For Men", price: 3000, stock: 98, category: "Fashion" },
-    //   { id: 3, name: "Desktop Computer", price: 458, stock: 99, category: "Electronics" },
-    //   { id: 4, name: "Door Export", price: 15000, stock: 100, category: "House" },
-    //   { id: 5, name: "Drill Machine", price: 3000, stock: 100, category: "Hardware" },
-    //   { id: 6, name: "Freezer", price: 4500, stock: 100, category: "House" },
-    //   { id: 7, name: "Gaming Laptop", price: 150000, stock: 100, category: "Electronics" },
-    //   { id: 8, name: "Ladie's Shirt", price: 900, stock: 100, category: "Fashion" },
-    //   { id: 9, name: "Laptop Computer", price: 78000, stock: 100, category: "Electronics" },
-    //   { id: 10, name: "Mobile Phone", price: 4500, stock: 100, category: "Electronics" },
-    //   { id: 11, name: "Printer", price: 12000, stock: 50, category: "Document" },
-    //   { id: 12, name: "Scanner", price: 5000, stock: 70, category: "Document" },
-    //   { id: 13, name: "Smartwatch", price: 6000, stock: 30, category: "Electronics" },
-    //   { id: 14, name: "Leather Jacket", price: 7000, stock: 20, category: "Fashion" },
-    //   { id: 15, name: "Hammer", price: 1200, stock: 100, category: "Hardware" },
-    //   { id: 16, name: "Television", price: 45000, stock: 80, category: "House" },
-    // ];
+
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [filteredProducts, setFilteredProducts] = useState([]);
     const [searchTerm, setSearchTerm] = useState("");
     const [selectedCategory, setSelectedCategory] = useState("");
+    const [customerName, setCustomerName] = useState("");
+    const [email, setEmail] = useState("");
+    const [phone, setPhone] = useState("");
+    const [address, setAddress] = useState("");
+    const [openingBalance, setOpeningBalance] = useState("");
 
     useEffect(() => {
       const fetchProducts = async () => {
@@ -48,6 +38,44 @@ export default function POSManage() {
   
       fetchProducts();
     }, []);
+
+    const handleSubmit = async (e) => {
+      e.preventDefault();
+    
+      const formData = {
+        name: customerName,
+        email,
+        phone,
+        address,
+        opening_balance: parseFloat(openingBalance) || 0, // Ensure numeric value
+      };
+    
+      try {
+        const response = await fetch("/Customers/customer", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(formData),
+        });
+    
+        if (!response.ok) throw new Error("Failed to save customer");
+    
+        const result = await response.json();
+        console.log("Customer Saved Successfully:", result);
+    
+        // Optionally reset the form fields
+        setCustomerName("");
+        setEmail("");
+        setPhone("");
+        setAddress("");
+        setOpeningBalance("");
+        toast.success("Customer added successfully!");
+      } catch (error) {
+        console.error("Error saving customer:", error);
+        toast.error("Failed to add customer. Please try again.");
+      }
+    };
   
     if (loading) return <p> <Loader/></p>;
     if (error) return <p>Error: {error}</p>;
@@ -88,15 +116,13 @@ export default function POSManage() {
         <h1 className="text-lg dark:text-white  mb-6 ">POS Manage</h1>
   
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+
+
           {/* Left Section: Input and Payment */}
           <div className="p-2 bg-white dark:bg-[#202047]  shadow-sm w-full">
             <div className="flex flex-col gap-4 dark:text-black items-center w-full">
-              {/* Scan Barcode & Product Name Input */}
-              <input
-                type="text"
-                placeholder="Scan Barcode"
-                className="border bg-white w-full border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+             
               <input
                 type="text"
                 placeholder="Start to write product name..."
@@ -136,79 +162,92 @@ export default function POSManage() {
                             </div>
 
                             {/* Form */}
-                            <form>
-                            {/* Name Field */}
-                            <div className="mb-4">
-                                <label className="block text-gray-700 mb-2">Name</label>
-                                <input
-                                type="text"
-                                placeholder="Name"
-                                className="w-full border border-teal-500 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-teal-500"
-                                />
-                            </div>
+                            <form className="bg-white shadow-sm rounded px-8 pt-6 pb-8 mb-4 text-sm dark:bg-[#181838] " onSubmit={handleSubmit}>
+                              <div className="flex flex-wrap -mx-3 mb-6">
+                                <div className="w-full  px-3 mb-6 md:mb-0">
+                                  <label className="block  tracking-wide text-gray-700 dark:text-white text-xs  mb-2" htmlFor="customer-name">
+                                    Customer Name<span className="text-red-500">*</span>
+                                  </label>
+                                  <input
+                                    className="appearance-none bg-white block w-full  text-gray-700 border border-gray-300 rounded py-3 px-4 mb-3 leading-tight focus:outline-none focus:bg-white"
+                                    id="customer-name"
+                                    type="text"
+                                    placeholder="Enter Customer Name..."
+                                    value={customerName}
+                                    onChange={(e) => setCustomerName(e.target.value)}
+                                    required
+                                  />
+                                </div>
+                                <div className="w-full  px-3">
+                                  <label className="block  tracking-wide text-gray-700 dark:text-white text-xs  mb-2" htmlFor="email">
+                                    Email
+                                  </label>
+                                  <input
+                                    className="appearance-none block bg-white w-full  text-gray-700 border border-gray-300 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white"
+                                    id="email"
+                                    type="email"
+                                    placeholder="Enter Customer Email..."
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                  />
+                                </div>
+                              </div>
 
-                            {/* Email Field */}
-                            <div className="mb-4">
-                                <label className="block text-gray-700 mb-2">Email</label>
-                                <input
-                                type="email"
-                                placeholder="Email"
-                                className="w-full border border-teal-500 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-teal-500"
-                                />
-                            </div>
+                              <div className="flex flex-wrap -mx-3 mb-6">
+                                <div className="w-full  px-3 mb-6 md:mb-0">
+                                  <label className="block  tracking-wide text-gray-700 dark:text-white text-xs  mb-2" htmlFor="phone">
+                                    Phone<span className="text-red-500">*</span>
+                                  </label>
+                                  <input
+                                    className="appearance-none block w-full bg-white  text-gray-700 border border-gray-300 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white"
+                                    id="phone"
+                                    type="text"
+                                    placeholder="Enter Customer Phone..."
+                                    value={phone}
+                                    onChange={(e) => setPhone(e.target.value)}
+                                    required
+                                  />
+                                </div>
+                                <div className="w-full  px-3">
+                                  <label className="block  tracking-wide text-gray-700 dark:text-white text-xs  mb-2" htmlFor="address">
+                                    Address
+                                  </label>
+                                  <input
+                                    className="appearance-none block w-full bg-white  text-gray-700 border border-gray-300 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white"
+                                    id="address"
+                                    type="text"
+                                    placeholder="Write Customer Address..."
+                                    value={address}
+                                    onChange={(e) => setAddress(e.target.value)}
+                                  />
+                                </div>
+                              </div>
 
-                            {/* Address Field */}
-                            <div className="mb-4">
-                                <label className="block text-gray-700 mb-2">Address</label>
-                                <textarea
-                                placeholder="Address"
-                                className="w-full border border-teal-500 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-teal-500"
-                                rows="3"
-                                />
-                            </div>
+                              <div className="flex flex-wrap -mx-3 mb-6">
+                                <div className="w-full  px-3 mb-6 md:mb-0">
+                                  <label className="block  tracking-wide text-gray-700 dark:text-white text-xs  mb-2" htmlFor="opening-Balance">
+                                    Opening Balance
+                                  </label>
+                                  <input
+                                    className="appearance-none block w-full bg-white  text-gray-700 border border-gray-300 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white"
+                                    id="opening-Balance"
+                                    type="number"
+                                    placeholder="Enter Opening Balance..."
+                                    value={openingBalance}
+                                    onChange={(e) => setOpeningBalance(e.target.value)}
+                                  />
+                                </div>
 
-                            {/* Phone Field */}
-                            <div className="mb-4">
-                                <label className="block text-gray-700 mb-2">Phone</label>
-                                <input
-                                type="tel"
-                                placeholder="Phone"
-                                className="w-full border border-teal-500 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-teal-500"
-                                />
-                            </div>
+                              </div>
 
-                            {/* Opening Receivable Field */}
-                            <div className="mb-4">
-                                <label className="block text-gray-700 mb-2">Opening Receivable</label>
-                                <input
-                                type="number"
-                                placeholder="Opening Receivable"
-                                className="w-full border border-teal-500 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-teal-500"
-                                />
-                            </div>
-
-                            {/* Opening Payable Field */}
-                            <div className="mb-4">
-                                <label className="block text-gray-700 mb-2">Opening Payable</label>
-                                <input
-                                type="number"
-                                placeholder="Opening Payable"
-                                className="w-full border border-teal-500 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-teal-500"
-                                />
-                            </div>
-
-                            {/* Buttons */}
-                            <div className="flex justify-between items-center">
-                                {/* Add Customer Button */}
-                                <button className="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600">
-                                Add Customer
+                              <div className="flex items-center justify-center">
+                                <button
+                                  className="bg-emerald-500 hover:bg-teal-700 text-white  py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+                                  type="submit"
+                                >
+                                  Save
                                 </button>
-
-                                {/* Close Button */}
-                                <button className="bg-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-400">
-                                Close
-                                </button>
-                            </div>
+                              </div>
                             </form>
                         </div>
                     </div>
@@ -216,7 +255,7 @@ export default function POSManage() {
             </dialog>
   
             {/* Cart Table */}
-            <div className="mt-6">
+            {/* <div className="mt-6">
               <table className="w-full border-collapse border border-gray-300 ">
                 <thead>
                   <tr className="bg-emerald-500 text-white">
@@ -238,13 +277,72 @@ export default function POSManage() {
                   </tr>
                 </tbody>
               </table>
-            </div>
+            </div> */}
   
             {/* Payment Button */}
             <div className="mt-4">
               <button className="bg-green-500 text-white w-full py-2 rounded-md hover:bg-green-600">
                 Payment
               </button>
+            </div>
+            <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 p-2'>
+            <div
+            className="relative block overflow-hidden rounded-lg border border-gray-100 p-4 sm:p-6 lg:p-8 bg-white bg-opacity-40 backdrop-blur-lg hover:bg-opacity-60 transition duration-300 ease-in-out"
+          >
+  <span
+    className="absolute inset-x-0 bottom-0 h-2 bg-gradient-to-r from-green-300 via-blue-500 to-purple-600"
+  ></span>
+
+
+  {/* Button to Create Sale */}
+  <div className="mt-4">
+    <Link
+      href="/Sales/Create"
+      className="inline-block bg-emerald-500 text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:from-green-500 hover:to-blue-600 transition-all duration-200"
+    >
+      Create Sale
+    </Link>
+  </div>
+            </div>
+            <div
+            className="relative block overflow-hidden rounded-lg border border-gray-100 p-4 sm:p-6 lg:p-8 bg-white bg-opacity-40 backdrop-blur-lg hover:bg-opacity-60 transition duration-300 ease-in-out"
+          >
+  <span
+    className="absolute inset-x-0 bottom-0 h-2 bg-gradient-to-r from-green-300 via-blue-500 to-purple-600"
+  ></span>
+
+
+  {/* Button to Create Sale */}
+  <div className="mt-4">
+    <Link
+      href="/Purchase/Create"
+      className="inline-block bg-emerald-500 text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:from-green-500 hover:to-blue-600 transition-all duration-200"
+    >
+      Create Purchase
+    </Link>
+  </div>
+            </div>
+
+
+            <div className="relative block overflow-hidden rounded-lg border border-gray-100 p-4 sm:p-6 lg:p-8 bg-white bg-opacity-40 backdrop-blur-lg hover:bg-opacity-60 transition duration-300 ease-in-out"
+          >
+  <span
+    className="absolute inset-x-0 bottom-0 h-2 bg-gradient-to-r from-green-300 via-blue-500 to-purple-600"
+  ></span>
+
+
+  {/* Button to Create Sale */}
+  <div className="mt-4">
+    <Link
+      href="/Damages/Create"
+      className="inline-block bg-emerald-500 text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:from-green-500 hover:to-blue-600 transition-all duration-200"
+    >
+      Create Damage
+    </Link>
+  </div>
+            </div>
+
+
             </div>
           </div>
   

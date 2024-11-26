@@ -1,16 +1,42 @@
 "use client"
 import Link from 'next/link';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 export default function Roles() {
   const [roleName, setRoleName] = useState('');
-  const [roles, setRoles] = useState([
-    { id: 1, name: 'SARAN', users: 0 },
-    { id: 2, name: 'Employee', users: 0 },
-    { id: 3, name: 'Mahadi', users: 0 },
-    { id: 4, name: 'Admin', users: 1 },
-    { id: 5, name: 'Operator', users: 1 },
-  ]);
+  const [roles, setRoles] = useState([]);
+  const [users, setUsers] = useState([]);
+  
+  // Fetch users from the API
+  useEffect(() => {
+    const fetchUsers = async () => {
+      const response = await fetch('/Users/users');
+      const data = await response.json();
+      setUsers(data);
+      // Process roles after fetching users
+      setRoles(getRolesWithUserCount(data));
+    };
+
+    fetchUsers();
+  }, []);
+  
+  // Function to get roles and their corresponding user counts
+  const getRolesWithUserCount = (usersData) => {
+    const roleCounts = usersData.reduce((acc, user) => {
+      const role = user.role;
+      if (!acc[role]) {
+        acc[role] = 0;
+      }
+      acc[role]++;
+      return acc;
+    }, {});
+
+    return Object.keys(roleCounts).map((role, index) => ({
+      id: index + 1,
+      name: role,
+      users: roleCounts[role],
+    }));
+  };
 
   const handleAddRole = () => {
     if (roleName) {
@@ -25,11 +51,12 @@ export default function Roles() {
   };
 
   const handleEditRole = (id, newName) => {
-    const updatedRoles = roles?.map((role) =>
+    const updatedRoles = roles.map((role) =>
       role.id === id ? { ...role, name: newName } : role
     );
     setRoles(updatedRoles);
   };
+
   return (
     <div className="container mx-auto p-6 mt-[20%] md:mt-[5%]">
       {/* Add Role Section */}
@@ -74,7 +101,7 @@ export default function Roles() {
                       Permission
                     </button>
                   </Link>
-                  
+
                   <button
                     onClick={() => handleEditRole(role.id, prompt('Edit Role Name:', role.name))}
                     className="bg-blue-500 text-white p-1 px-5 rounded"
@@ -94,5 +121,5 @@ export default function Roles() {
         </table>
       </div>
     </div>
-  )
+  );
 }

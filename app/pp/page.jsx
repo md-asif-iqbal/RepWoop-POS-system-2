@@ -1,414 +1,255 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import React, { useState, useEffect } from "react";
-import { CSVLink } from "react-csv";
-import jsPDF from "jspdf";
-import "jspdf-autotable";
-import * as XLSX from "xlsx";
-const paginate = (data, page, entriesPerPage) => {
-  const startIndex = page * entriesPerPage;
-  return data.slice(startIndex, startIndex + entriesPerPage);
-};
+import React, { useState, useEffect } from 'react';
+import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 
-export default function SummaryReport() {
-  const pathname = usePathname();
-  const spanClass =
-    " block h-0.5 bg-gradient-to-r from-pink-500 to-orange-500 scale-x-0 group-hover:scale-x-100 transition-transform origin-left duration-700";
-
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  const [filtered, setFiltered] = useState(false);
-  const [loading, setLoading] = useState(true);
-
+export default function Payments() {
+  const [purchases, setPurchases] = useState([]);
   const [sales, setSales] = useState([]);
-  const [expenses, setExpenses] = useState([]);
-  const [suppliers, setSuppliers] = useState([]);
-  const [customers, setCustomers] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(15);
+  const [nameFilter, setNameFilter] = useState('');
+  const [startDateFilter, setStartDateFilter] = useState('');
+  const [endDateFilter, setEndDateFilter] = useState('');
 
-  const [entriesPerPage, setEntriesPerPage] = useState(10);
-  const [currentPageSales, setCurrentPageSales] = useState(0);
-  const [currentPageExpenses, setCurrentPageExpenses] = useState(0);
-  const [currentPageSuppliers, setCurrentPageSuppliers] = useState(0);
-  const [currentPageCustomers, setCurrentPageCustomers] = useState(0);
-
-  const [salesSearch, setSalesSearch] = useState("");
-  const [expensesSearch, setExpensesSearch] = useState("");
-  const [suppliersSearch, setSuppliersSearch] = useState("");
-  const [customersSearch, setCustomersSearch] = useState("");
-
+  // Fetch purchase data
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchPurchases = async () => {
       try {
-        const [salesRes, expensesRes, suppliersRes, customersRes] =
-          await Promise.all([
-            fetch("/Sales/Create/sales"),
-            fetch("/Expenses/expense"),
-            fetch("/Suppliers/suppliers"),
-            fetch("/Customers/customer"),
-          ]);
-
-        if (
-          !salesRes.ok ||
-          !expensesRes.ok ||
-          !suppliersRes.ok ||
-          !customersRes.ok
-        ) {
-          throw new Error("Failed to fetch data");
-        }
-
-        const salesData = await salesRes.json();
-        const expensesData = (await expensesRes.json())?.expenses || [];
-        const suppliersData = (await suppliersRes.json())?.suppliers || [];
-        const customersData = (await customersRes.json())?.customers || [];
-
-        setSales(salesData);
-        setExpenses(expensesData);
-        setSuppliers(suppliersData);
-        setCustomers(customersData);
+        const response = await fetch('/Purchase/Create/purchase');
+        const data = await response.json();
+        setPurchases(Array.isArray(data) ? data : [data]); // Ensure data is an array
       } catch (error) {
-        console.error(error);
-        alert("Failed to fetch data");
-      } finally {
-        setLoading(false);
+        console.error("Error fetching purchase data:", error);
+        setPurchases([]); // Fallback to an empty array
       }
     };
-
-    fetchData();
+    fetchPurchases();
   }, []);
 
+  // Fetch sales data
+  useEffect(() => {
+    const fetchSales = async () => {
+      try {
+        const response = await fetch('/Sales/Create/sales');
+        const data = await response.json();
+        setSales(Array.isArray(data) ? data : [data]); // Ensure data is an array
+      } catch (error) {
+        console.error("Error fetching sales data:", error);
+        setSales([]); // Fallback to an empty array
+      }
+    };
+    fetchSales();
+  }, []);
 
+  // Combine names for the filter dropdown
+  const names = Array.from(new Set([
+    ...purchases.map(item => item.supplier),
+    ...sales.map(item => item.selected_customer),
+  ])).filter(Boolean).sort();
+  console.log(names);
 
-  const calculateTotalAmount = (data, key) => {
-    return data.reduce((acc, item) => {
-      const numericValue = parseFloat(item[key]?.replace(/[^0-9.]/g, "") || 0);
-      return acc + numericValue;
-    }, 0);
+  // Combine and filter purchase and sales data
+  const filterDataByDate = (data, startDate, endDate, nameFilter) => {
+    return data.filter(item => {
+      const itemDate = new Date(item.purchase_date || item.sale_date);
+      const withinDateRange =
+        (!startDate || itemDate >= new Date(startDate)) &&
+        (!endDate || itemDate <= new Date(endDate));
+
+      return (
+        (!nameFilter || item.supplier === nameFilter || item.selected_customer === nameFilter) &&
+        withinDateRange
+      );
+    });
   };
 
-  const filterByDate = (data, dateKey) => {
-    if (!startDate || !endDate || !filtered) return data;
-    return data.filter(
-      (item) =>
-        new Date(item[dateKey]) >= new Date(startDate) &&
-        new Date(item[dateKey]) <= new Date(endDate)
-    );
-  };
+  const combinedData = [...purchases, ...sales];
+  const filteredData = filterDataByDate(combinedData, startDateFilter, endDateFilter, nameFilter);
+
+  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+
+  const currentRows = filteredData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const handleFilter = () => {
-    setFiltered(true);
+    setCurrentPage(1); // Reset to first page on filter change
   };
 
-  const resetFilter = () => {
-    setStartDate("");
-    setEndDate("");
-    setFiltered(false);
+  const handleReset = () => {
+    setNameFilter('');
+    setStartDateFilter('');
+    setEndDateFilter('');
+    setCurrentPage(1);
   };
 
-  const exportToExcel = (data, filename) => {
-    const worksheet = XLSX.utils.json_to_sheet(data);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Sheet1");
-    XLSX.writeFile(workbook, `${filename}.xlsx`);
+  const handlePrint = () => {
+    const printContent = document.getElementById("table-to-print").outerHTML;
+    const newWindow = window.open('', '_blank');
+    newWindow.document.write(`
+      <html>
+        <head>
+          <title>Payment Invoice</title>
+          <style>
+            body { font-family: Arial, sans-serif; }
+            table { border-collapse: collapse; width: 100%; }
+            th, td { border: 1px solid #000; padding: 8px; text-align: left; }
+          </style>
+        </head>
+        <body onload="window.print()">
+          ${printContent}
+        </body>
+      </html>
+    `);
+    newWindow.document.close();
   };
 
-  const exportPDF = (data, title) => {
-    const doc = new jsPDF();
-    doc.text(title, 20, 10);
-    doc.autoTable({
-      head: [["#", "Name", "Details", "Amount"]],
-      body: data?.map((item, index) => [
-        index + 1,
-        item.product_name || item.name || item.supplier || item.customer,
-        item.product_details || item.category || item.payment_date || "",
-        item.total || item.amount || "",
-      ]),
-    });
-    doc.save(`${title}.pdf`);
-  };
+  const generateInvoice = async (data) => {
+    const pdfDoc = await PDFDocument.create();
+    const page = pdfDoc.addPage([595.28, 841.89]);
+    const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
 
-  if (loading) {
-    return <div>Loading...</div>;
-  }
+    let yPosition = 750;
+    const lineHeight = 20;
 
-  return (
-    <div className="bg-white dark:bg-[#141432] font-nunito text-sm dark:text-white">
-      <div className="p-0 mt-[25%] sm:mt-[5%] w-full">
-        <div className="mb-4 shadow-sm rounded-sm">
-          <h1 className="text-lg text-gray-500 dark:text-white mx-5">
-            Summary Report
-          </h1>
-          <div className="sm:md:flex items-start justify-start mx-5 py-5 gap-10">
-            <Link
-              href="/Today-Report"
-              className={`${
-                pathname === "/Today-Report"
-                  ? " group text-orange-500 hover:text-orange-500"
-                  : "group text-gray-500 dark:text-white hover:text-orange-500"
-              }`}
-            >
-              Today Report
-              <span className={spanClass}></span>
-            </Link>
-            <Link
-              href="/Current-Month-Report"
-              className={`${
-                pathname === "/Current-Month-Report"
-                  ? " group text-orange-500 hover:text-orange-500"
-                  : "group text-gray-500 dark:text-white hover:text-orange-500"
-              }`}
-            >
-              Current Month Report
-              <span className={spanClass}></span>
-            </Link>
-            <Link
-              href="/Summary-Report"
-              className={`${
-                pathname === "/Summary-Report"
-                  ? " group text-orange-500 hover:text-orange-500"
-                  : "group text-gray-500 dark:text-white hover:text-orange-500"
-              }`}
-            >
-              Summary Report
-              <span className={spanClass}></span>
-            </Link>
-          </div>
-        </div>
+    page.drawText("Repwoop Company", { x: 50, y: yPosition, size: 18, font: helveticaFont });
+    page.drawText("Address: Holding 53 (1st floor), Sahajatpur, Gulshan, Dhaka 1219", { x: 50, y: yPosition -= lineHeight, size: 12, font: helveticaFont });
+    page.drawText("Phone: 01779724380", { x: 50, y: yPosition -= lineHeight, size: 12, font: helveticaFont });
+    page.drawText("Email: info@repwoop.com", { x: 50, y: yPosition -= lineHeight, size: 12, font: helveticaFont });
 
-        {/* Date Filters */}
-        <div className="container mx-auto px-4 py-8">
-          <div className="md:flex justify-between mb-8 w-full gap-5">
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="border p-2 w-full mb-2 md:mb-0 bg-white"
-            />
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="border p-2 w-full mb-2 md:mb-0 bg-white"
-            />
-            <button
-              onClick={handleFilter}
-              className="bg-blue-500 text-white p-2 w-full md:w-1/4 mb-2 md:mb-0"
-            >
-              Filter
-            </button>
-            <button
-              onClick={resetFilter}
-              className="bg-red-500 text-white p-2 w-full md:w-1/4 mb-2 md:mb-0"
-            >
-              Reset
-            </button>
-          </div>
+    yPosition -= 30;
+    page.drawText("Payment Invoice", { x: 250, y: yPosition, size: 16, font: helveticaFont });
 
-          {/* Summary Section */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="bg-green-500 text-white p-4 rounded shadow-md">
-              <h3 className="text-sm">SALE AMOUNT</h3>
-              <p className="dark:text-white text-md">
-                TK{" "}
-                {calculateTotalAmount(filterByDate(sales, "sale_date"), "total")}
-              </p>
-            </div>
-            <div className="bg-red-500 text-white p-4 rounded shadow-md">
-              <h3 className="text-sm">EXPENSE</h3>
-              <p className="dark:text-white text-md">
-                TK{" "}
-                {calculateTotalAmount(
-                  filterByDate(expenses, "created_at"),
-                  "amount"
-                )}
-              </p>
-            </div>
-            <div className="bg-gray-700 text-white p-4 rounded shadow-md">
-              <h3 className="text-sm">SUPPLIER PAYMENTS</h3>
-              <p className="dark:text-white text-md">
-                TK{" "}
-                {calculateTotalAmount(
-                  filterByDate(suppliers, "created_at"),
-                  "balance"
-                )}
-              </p>
-            </div>
-            <div className="bg-yellow-500 text-white p-4 rounded shadow-md">
-              <h3 className="text-sm">CUSTOMER PAYMENTS</h3>
-              <p className="dark:text-white text-md">
-                TK{" "}
-                {calculateTotalAmount(
-                  filterByDate(customers, "createdat"),
-                  "balance"
-                )}
-              </p>
-            </div>
-          </div>
+    yPosition -= 40;
+    page.drawText(`Invoice No: ${data.invoice_no || '---'}`, { x: 50, y: yPosition, size: 12, font: helveticaFont });
+    page.drawText(`Date: ${data.purchase_date || data.sale_date || '---'}`, { x: 400, y: yPosition, size: 12, font: helveticaFont });
 
-          {/* Tables */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
-            <Table
-              title="Sales"
-              data={filterByDate(sales.flatMap((sale) =>
-                sale.products.map((product) => ({
-                  ...sale,
-                  product_name: product.product_name,
-                  product_details: product.product_details,
-                  product_sale_price: product.sale_price,
-                }))
-              ), "sale_date")}
-              fields={{
-                name: "product_name",
-                details: "product_details",
-                amount: "product_sale_price",
-              }}
-              search={salesSearch}
-              setSearch={setSalesSearch}
-              currentPage={currentPageSales}
-              setCurrentPage={setCurrentPageSales}
-              entriesPerPage={entriesPerPage}
-            />
-            <Table
-              title="Expenses"
-              data={filterByDate(expenses, "created_at")}
-              fields={{ name: "name", details: "invoice_no", amount: "amount" }}
-              search={expensesSearch}
-              setSearch={setExpensesSearch}
-              currentPage={currentPageExpenses}
-              setCurrentPage={setCurrentPageExpenses}
-              entriesPerPage={entriesPerPage}
-            />
-            <Table
-              title="Payments to Suppliers"
-              data={filterByDate(suppliers, "created_at")}
-              fields={{ name: "name", details: "email", amount: "balance" }}
-              search={suppliersSearch}
-              setSearch={setSuppliersSearch}
-              currentPage={currentPageSuppliers}
-              setCurrentPage={setCurrentPageSuppliers}
-              entriesPerPage={entriesPerPage}
-            />
-            <Table
-              title="Payments from Customers"
-              data={filterByDate(customers, "createdat")}
-              fields={{ name: "name", details: "email", amount: "balance" }}
-              search={customersSearch}
-              setSearch={setCustomersSearch}
-              currentPage={currentPageCustomers}
-              setCurrentPage={setCurrentPageCustomers}
-              entriesPerPage={entriesPerPage}
-            />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+    yPosition -= lineHeight;
+    page.drawText(`Name: ${data.supplier || data.selected_customer || '---'}`, { x: 50, y: yPosition, size: 12, font: helveticaFont });
+    page.drawText(`Amount Paid: ${data.amount_paid || '0.00'} TK`, { x: 50, y: yPosition -= lineHeight, size: 12, font: helveticaFont });
+    page.drawText(`Payment Note: ${data.payment_note || 'N/A'}`, { x: 50, y: yPosition -= lineHeight, size: 12, font: helveticaFont });
 
-// Table Component
-function Table({
-  title,
-  data,
-  fields,
-  search,
-  setSearch,
-  currentPage,
-  setCurrentPage,
-  entriesPerPage,
-}) {
-  const filteredData = data.filter((item) =>
-    [item[fields.name], item[fields.details], item[fields.amount]]
-      .join(" ")
-      .toLowerCase()
-      .includes(search.toLowerCase())
-  );
+    const pdfBytes = await pdfDoc.save();
+    const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+    const blobUrl = URL.createObjectURL(blob);
 
-  const paginatedData = paginate(filteredData, currentPage, entriesPerPage);
-
-  const exportToExcel = () => {
-    const worksheet = XLSX.utils.json_to_sheet(filteredData);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Sheet1");
-    XLSX.writeFile(workbook, `${title}.xlsx`);
-  };
-
-  const exportPDF = () => {
-    const doc = new jsPDF();
-    doc.text(title, 20, 10);
-    doc.autoTable({
-      head: [["#", "Name", "Details", "Amount"]],
-      body: paginatedData.map((item, index) => [
-        index + 1,
-        item[fields.name],
-        item[fields.details],
-        item[fields.amount],
-      ]),
-    });
-    doc.save(`${title}.pdf`);
+    const newTab = window.open(blobUrl);
+    newTab.onload = () => {
+      newTab.focus();
+      newTab.print();
+    };
   };
 
   return (
-    <div className="border rounded shadow p-4 bg-white dark:bg-gray-800">
+    <div className="container mx-auto mt-10 lg:mt-5 px-4 sm:px-6 lg:px-8 text-sm lg:h-screen mb-5">
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-lg font-bold">{title}</h2>
-        <div>
-          <button
-            onClick={exportToExcel}
-            className="bg-green-500 text-white px-2 py-1 rounded mr-2"
-          >
-            Excel
-          </button>
-          <button
-            onClick={exportPDF}
-            className="bg-blue-500 text-white px-2 py-1 rounded"
-          >
-            PDF
-          </button>
-        </div>
+        <h2 className="text-black text-lg mb-5 mt-5 dark:text-white">Payment Management</h2>
+        <button 
+          onClick={handlePrint} 
+          className="bg-green-500 text-white rounded px-4 py-2"
+        >
+          Print
+        </button>
       </div>
-      <input
-        type="text"
-        placeholder="Search..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        className="w-full border px-3 py-2 mb-4"
-      />
-      <table className="w-full border-collapse text-left">
+
+      <div className="flex flex-wrap justify-between items-center mb-4 text-sm">
+        <select 
+          value={nameFilter} 
+          onChange={(e) => setNameFilter(e.target.value)} 
+          className="border rounded px-4 py-2 mb-2 sm:mb-0 sm:mr-2 flex-1"
+        >
+          <option value="">Select Customer/Supplier</option>
+          {names.map((name, index) => (
+            <option key={index} value={name}>{name}</option>
+          ))}
+        </select>
+        <input 
+          type="date" 
+          value={startDateFilter} 
+          onChange={(e) => setStartDateFilter(e.target.value)} 
+          className="border bg-white rounded px-4 py-2 mb-2 sm:mb-0 sm:mr-2 flex-1"
+        />
+        <input 
+          type="date" 
+          value={endDateFilter} 
+          onChange={(e) => setEndDateFilter(e.target.value)} 
+          className="border bg-white rounded px-4 py-2 mb-2 sm:mb-0 sm:mr-2 flex-1"
+        />
+        <button 
+          onClick={handleFilter} 
+          className="bg-blue-500 text-white rounded px-4 py-2 mb-2 sm:mb-0 sm:mr-2"
+        >
+          Filter
+        </button>
+        <button 
+          onClick={handleReset} 
+          className="bg-gray-300 text-black rounded px-4 py-2 mb-2 sm:mb-0"
+        >
+          Reset
+        </button>
+      </div>
+
+      <table id="table-to-print" className="min-w-full border border-gray-300 text-center dark:bg-[#1d1d3b]">
         <thead>
-          <tr>
-            <th className="border px-4 py-2">#</th>
-            <th className="border px-4 py-2">Name</th>
-            <th className="border px-4 py-2">Details</th>
-            <th className="border px-4 py-2">Amount</th>
+          <tr className="bg-emerald-500 text-white">
+            <th className="border border-gray-300 px-4 py-2">SL</th>
+            <th className="border border-gray-300 px-4 py-2">Customer/Supplier</th>
+            <th className="border border-gray-300 px-4 py-2">Date</th>
+            <th className="border border-gray-300 px-4 py-2">Amount Paid</th>
+            <th className="border border-gray-300 px-4 py-2">Invoice</th>
+            <th className="border border-gray-300 px-4 py-2">Note</th>
+            <th className="border border-gray-300 px-4 py-2">Actions</th>
           </tr>
         </thead>
         <tbody>
-          {paginatedData.map((item, index) => (
-            <tr key={index}>
-              <td className="border px-4 py-2">{index + 1}</td>
-              <td className="border px-4 py-2">{item[fields.name]}</td>
-              <td className="border px-4 py-2">{item[fields.details]}</td>
-              <td className="border px-4 py-2">{item[fields.amount]}</td>
+          {currentRows.length > 0 ? (
+            currentRows.map((item, index) => (
+              <tr key={item.id} className="dark:text-white">
+                <td className="border border-gray-300 px-4 py-2">{index + 1}</td>
+                <td className="border border-gray-300 px-4 py-2">
+                  {item.supplier ? `Supplier Name: ${item.supplier}` : `Customer Name: ${item.selected_customer}`}
+                </td>
+                <td className="border border-gray-300 px-4 py-2">{item.purchase_date || item.sale_date}</td>
+                <td className="border border-gray-300 px-4 py-2">{item.amount_paid} TK</td>
+                <td className="border border-gray-300 px-4 py-2">{item.invoice_no}</td>
+                <td className="border border-gray-300 px-4 py-2">{item.payment_note || 'N/A'}</td>
+                <td className="border border-gray-300 px-4 py-2">
+                  <button 
+                    onClick={() => generateInvoice(item)} 
+                    className="bg-blue-500 text-white rounded px-2 py-1 mr-2"
+                  >
+                    Invoice
+                  </button>
+                  <button 
+                    className="bg-red-500 text-white rounded px-2 py-1"
+                  >
+                    Delete
+                  </button>
+                </td>
+              </tr>
+            ))
+          ) : (
+            <tr>
+              <td colSpan="7" className="border border-gray-300 px-4 py-2 text-center">No data available</td>
             </tr>
-          ))}
+          )}
         </tbody>
       </table>
-      {/* Pagination */}
-      <div className="flex justify-center items-center mt-4">
-        <button
-          onClick={() => setCurrentPage(Math.max(0, currentPage - 1))}
-          className="bg-gray-300 px-4 py-2 rounded-l"
-        >
-          Previous
-        </button>
-        <span className="px-4 py-2">Page {currentPage + 1}</span>
-        <button
-          onClick={() => setCurrentPage(currentPage + 1)}
-          className="bg-gray-300 px-4 py-2 rounded-r"
-        >
-          Next
-        </button>
+
+      <div className="flex justify-between items-center mt-4">
+        <div>
+          <span>Page {currentPage} of {totalPages}</span>
+        </div>
+        <div className="flex">
+          {Array.from({ length: totalPages }, (_, index) => (
+            <button 
+              key={index} 
+              onClick={() => setCurrentPage(index + 1)} 
+              className={`border rounded px-2 py-1 mx-1 ${currentPage === index + 1 ? 'bg-blue-500 text-white' : 'bg-gray-300 text-black'}`}
+            >
+              {index + 1}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );

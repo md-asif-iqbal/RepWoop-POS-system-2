@@ -1,54 +1,101 @@
 "use client"
+
+
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { toast } from 'react-toastify';
 
 export default function EmployeeSalary() {
-     const pathname = usePathname();
-    const spanClass = " block h-0.5 bg-gradient-to-r from-pink-500 to-orange-500 scale-x-0 group-hover:scale-x-100 transition-transform origin-left duration-700"
-    const [formData, setFormData] = useState({
-        salaryMonth: new Date().toISOString().split('T')[0], // Set today's date as the default
-        employee: '',
-        basicSalary: '',
-        overtimeRate: '',
-        totalOvertime: '',
-        totalSalary: '',
-        advanceAmount: '0',
-        payAmount: '',
-        transactionAccount: 'CASH',
+
+  const spanClass = " block h-0.5 bg-gradient-to-r from-pink-500 to-orange-500 scale-x-0 group-hover:scale-x-100 transition-transform origin-left duration-700"
+  const pathname = usePathname();
+
+  const [employees, setEmployees] = useState([]);
+  const [formData, setFormData] = useState({
+    salaryMonth: new Date().toISOString().split('T')[0],
+    employee: '',
+    email: '', // Store email of the selected employee
+    basicSalary: '',
+    overtimeRate: '',
+    totalOvertime: '',
+    totalSalary: '',
+    advanceAmount: '0',
+    payAmount: '',
+    transactionAccount: 'CASH',
+  });
+  const transactionAccounts = [
+    'CASH',
+    'IBBL',
+    'Nagud',
+    'Bkash',
+    'Shobuj',
+    'City Bank',
+  ];
+
+  useEffect(() => {
+    // Fetch employee names from the backend
+    async function fetchEmployees() {
+      try {
+        const response = await fetch('/Employee-and-Salary/New-Employee/new');
+        const data = await response.json();
+        if (data.success) {
+          setEmployees(data.data);
+        } else {
+          console.error('Failed to fetch employees:', data.error);
+        }
+      } catch (error) {
+        console.error('Error fetching employees:', error);
+      }
+    }
+
+    fetchEmployees();
+  }, []);
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+
+    // If the employee field changes, find and set the corresponding email
+    if (name === value) {
+      const selectedEmployee = employees.find((emp) => emp.name === value);
+      setFormData((prevData) => ({
+        ...prevData,
+        employee: value,
+        email: selectedEmployee ? selectedEmployee.email : '', // Update email
+
+      }));
+      console.log(formData);
+    } else {
+      setFormData((prevData) => ({
+        ...prevData,
+        [name]: value,
+      }));
+    }
+  };
+
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    console.log(formData);
+
+    try {
+      const response = await fetch('/Employee-and-Salary/Salary/salary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
       });
-    
-      const transactionAccounts = [
-        'CASH',
-        'IBBL',
-        'Nagud',
-        'Bkash',
-        'Shobuj',
-        'City Bank',
-        'aa',
-        '1347908644477', // Example data from dropdown
-      ];
-    
-      const employees = [
-        { id: 1, name: 'John Doe' },
-        { id: 2, name: 'Jane Smith' },
-        { id: 3, name: 'Robert Downey' },
-        // Add more employees as needed
-      ];
-    
-      const handleInputChange = (e) => {
-        const { name, value } = e.target;
-        setFormData((prevData) => ({
-          ...prevData,
-          [name]: value,
-        }));
-      };
-    
-      const handleSubmit = (e) => {
-        e.preventDefault();
-        console.log('Form Data Submitted:', formData);
-        // Add your submit logic here (e.g., sending data to an API)
-      };
+      const data = await response.json();
+
+      if (response.ok) {
+        toast.success('Salary data submitted successfully!');
+      } else {
+        toast.error(`Error: ${data.error}`);
+      }
+    } catch (error) {
+      console.error('Error submitting salary data:', error);
+    }
+  };
+
   return (
     <div className='bg-white dark:bg-[#141432] font-nunito text-sm'>
 
@@ -275,3 +322,5 @@ export default function EmployeeSalary() {
 </div>
   )
 }
+
+

@@ -33,7 +33,7 @@ export default function NewEmployeeForm () {
         e.preventDefault();
     
         try {
-            const response = await fetch('/api/employees', {
+            const response = await fetch('/Employee-and-Salary/New-Employee/new', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
